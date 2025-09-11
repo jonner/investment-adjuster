@@ -1,0 +1,12 @@
+AccountNumber: "X12345678"
+CorePosition:
+  Symbol: "FCASH"
+  Minimum: 2000
+Positions:
+  - Symbol: "VTI"
+    Percent: 45
+  - Symbol: "VXUS"
+    Percent: 30
+  - Symbol: "BND"
+    Percent: 25
+
