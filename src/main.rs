@@ -3,11 +3,9 @@ use clap::Parser;
 use directories::ProjectDirs;
 use tracing::debug;
 
-// FIXME: handle dollar sign
 type Dollar = f32;
 // FIXME: handle dollar sign and plus/minus
 type RelativeDollar = String;
-// FIXME: handle percent sign
 type Percent = f32;
 // FIXME: handle percent sign and plus/minus
 type RelativePercent = String;

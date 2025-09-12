@@ -38,47 +38,47 @@ pub(crate) struct Position {
     #[serde(rename = "Account Number")]
     pub account_number: String,
     #[serde(rename = "Account Name")]
-    account_name: String,
+    _account_name: String,
     #[serde(rename = "Symbol")]
     symbol: String,
     #[serde(rename = "Description")]
-    description: String,
+    _description: String,
     #[serde(rename = "Quantity")]
-    quantity: Option<f32>,
+    _quantity: Option<f32>,
     #[serde(
         rename = "Last Price",
         deserialize_with = "deserialize_optional_dollar"
     )]
-    last_price: Option<Dollar>,
+    _last_price: Option<Dollar>,
     #[serde(rename = "Last Price Change")]
-    last_price_change: Option<RelativeDollar>,
+    _last_price_change: Option<RelativeDollar>,
     #[serde(rename = "Current Value", deserialize_with = "deserialize_dollar")]
     pub current_value: Dollar,
     #[serde(rename = "Today's Gain/Loss Dollar")]
-    today_change_dollar: Option<RelativeDollar>,
+    _today_change_dollar: Option<RelativeDollar>,
     #[serde(rename = "Today's Gain/Loss Percent")]
-    today_change_percent: Option<RelativePercent>,
+    _today_change_percent: Option<RelativePercent>,
     #[serde(rename = "Total Gain/Loss Dollar")]
-    total_change_dollar: Option<RelativeDollar>,
+    _total_change_dollar: Option<RelativeDollar>,
     #[serde(rename = "Total Gain/Loss Percent")]
-    total_change_percent: Option<RelativePercent>,
+    _total_change_percent: Option<RelativePercent>,
     #[serde(
         rename = "Percent Of Account",
         deserialize_with = "deserialize_percent"
     )]
-    percent_of_account: Percent,
+    _percent_of_account: Percent,
     #[serde(
         rename = "Cost Basis Total",
         deserialize_with = "deserialize_optional_dollar"
     )]
-    cost_basis_total: Option<Dollar>,
+    _cost_basis_total: Option<Dollar>,
     #[serde(
         rename = "Average Cost Basis",
         deserialize_with = "deserialize_optional_dollar"
     )]
-    cost_basis_average: Option<Dollar>,
+    _cost_basis_average: Option<Dollar>,
     #[serde(rename = "Type")]
-    position_type: String,
+    _position_type: String,
 }
 
 impl Position {
