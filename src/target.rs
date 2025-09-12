@@ -23,7 +23,8 @@ impl AllocationTargets {
     pub(crate) fn load_from_file(path: &PathBuf) -> anyhow::Result<Self> {
         let targets_file =
             std::fs::File::open(path).with_context(|| format!("Failed to open file {path:?}"))?;
-        let builder: AllocationTargetsBuilder = serde_yaml::from_reader(targets_file)?;
+        let builder: AllocationTargetsBuilder = serde_yaml::from_reader(targets_file)
+            .with_context(|| format!("Failed to parse config file {path:?}"))?;
         builder.build()
     }
 
