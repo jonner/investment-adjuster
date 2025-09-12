@@ -1,5 +1,6 @@
 use std::{collections::HashMap, fmt::Debug, path::PathBuf};
 
+use clap::ValueEnum;
 use tracing::debug;
 
 use crate::{Dollar, portfolio::provider::fidelity::FidelityCsvRow};
@@ -128,6 +129,7 @@ pub struct Portfolio {
     pub accounts: Vec<Account>,
 }
 
+#[derive(Clone, Debug, ValueEnum)]
 pub enum Provider {
     Fidelity,
 }
