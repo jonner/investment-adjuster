@@ -1,7 +1,8 @@
-use anyhow::Context;
 use clap::Parser;
 use directories::ProjectDirs;
 use tracing::debug;
+
+use crate::target::AccountTarget;
 
 type Dollar = f32;
 // FIXME: handle dollar sign and plus/minus
@@ -40,12 +41,7 @@ fn main() -> anyhow::Result<()> {
     else {
         anyhow::bail!("Failed to get target path");
     };
-    let targets_file = std::fs::File::open(&targets_path)
-        .with_context(|| format!("Failed to open file {targets_path:?}"))?;
-    let account_targets: target::AccountTargetBuilder = serde_yaml::from_reader(targets_file)?;
-    let account_targets = account_targets.build()?;
-    debug!(?account_targets, "got targets");
-
+    let account_targets = AccountTarget::load_from_file(targets_path)?;
     println!(
         "Allocation targets for account {}",
         account_targets.account_number

@@ -1,6 +1,6 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
-use anyhow::{anyhow, bail};
+use anyhow::{Context, anyhow, bail};
 use serde::Deserialize;
 use tracing::debug;
 
@@ -20,6 +20,13 @@ pub struct AccountTarget {
 }
 
 impl AccountTarget {
+    pub(crate) fn load_from_file(path: PathBuf) -> anyhow::Result<Self> {
+        let targets_file =
+            std::fs::File::open(&path).with_context(|| format!("Failed to open file {path:?}"))?;
+        let account_targets: AccountTargetBuilder = serde_yaml::from_reader(targets_file)?;
+        account_targets.build()
+    }
+
     pub(crate) fn targets(&self) -> HashMap<String, Percent> {
         self.targets.clone()
     }
@@ -112,7 +119,7 @@ impl AccountTarget {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "PascalCase")]
-pub struct AccountTargetBuilder {
+struct AccountTargetBuilder {
     pub account_number: String,
     pub core_position: CorePosition,
     pub positions: HashMap<String, Percent>,
