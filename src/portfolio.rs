@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Debug, path::PathBuf};
 
 use clap::ValueEnum;
-use tracing::debug;
+use tracing::{debug, info};
 
 use crate::{Dollar, portfolio::provider::fidelity::FidelityCsvRow};
 
@@ -142,7 +142,7 @@ impl Portfolio {
                 debug!("created reader");
                 let rows: Vec<FidelityCsvRow> = csv_reader
                     .deserialize()
-                    .filter_map(|record| record.ok())
+                    .filter_map(|record| record.inspect_err(|e| info!("{e}")).ok())
                     .collect();
                 debug!(?rows, "deserialized rows");
                 let mut accounts = HashMap::<String, Account>::new();
