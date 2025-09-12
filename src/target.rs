@@ -4,7 +4,7 @@ use anyhow::{Context, anyhow, bail};
 use serde::Deserialize;
 use tracing::debug;
 
-use crate::{Action, Dollar, Percent};
+use crate::{Action, Dollar, Percent, portfolio::Account};
 
 #[derive(Debug)]
 struct PositionAdjustment {
@@ -31,15 +31,13 @@ impl AccountTarget {
         self.targets.clone()
     }
 
-    pub(crate) fn process(
-        &self,
-        current: Vec<crate::portfolio::Position>,
-    ) -> anyhow::Result<Vec<(String, Action)>> {
-        let core = current
+    pub(crate) fn process(&self, account: &Account) -> anyhow::Result<Vec<(String, Action)>> {
+        let core = account
+            .positions
             .iter()
             .find(|&pos| {
-                pos.symbol() == self.core_position.symbol
-                    && pos.account_number == self.account_number
+                pos.symbol == self.core_position.symbol
+                    && account.account_number == self.account_number
             })
             .ok_or_else(|| {
                 anyhow!(
@@ -48,7 +46,7 @@ impl AccountTarget {
                     self.account_number
                 )
             })?;
-        if !core.is_core_position() {
+        if !core.is_core {
             bail!(
                 "Found position {} but it is not marked as the core position",
                 self.core_position.symbol
@@ -61,7 +59,7 @@ impl AccountTarget {
                 self.core_position.minimum
             );
         }
-        if self.targets.contains_key(core.symbol()) {
+        if self.targets.contains_key(&core.symbol) {
             bail!("Core position cannot be in target list");
         }
         let mut adjustments: HashMap<String, PositionAdjustment> = HashMap::new();
@@ -74,9 +72,9 @@ impl AccountTarget {
                     desired_percent: target_percent,
                 });
         }
-        for pos in current.iter() {
+        for pos in account.positions.iter() {
             adjustments
-                .entry(pos.symbol().to_owned())
+                .entry(pos.symbol.to_owned())
                 .and_modify(|e| e.current_value = pos.current_value)
                 .or_insert(PositionAdjustment {
                     current_value: pos.current_value,

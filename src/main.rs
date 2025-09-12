@@ -1,8 +1,8 @@
+use anyhow::anyhow;
 use clap::Parser;
 use directories::ProjectDirs;
-use tracing::debug;
 
-use crate::target::AccountTarget;
+use crate::{portfolio::Portfolio, target::AccountTarget};
 
 type Dollar = f32;
 // FIXME: handle dollar sign and plus/minus
@@ -26,14 +26,6 @@ fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
     let opts = cli::Cli::parse();
 
-    let mut position_reader = csv::Reader::from_path(opts.current_allocations)?;
-    debug!("created reader");
-    let positions = position_reader
-        .deserialize()
-        .filter_map(|record| record.ok())
-        .collect();
-    debug!(?positions, "got positions");
-
     let Some(targets_path) =
         opts.target
             .or(ProjectDirs::from("org", "quotidian", "investment-adjuster")
@@ -56,7 +48,19 @@ fn main() -> anyhow::Result<()> {
     );
     println!();
 
-    let actions = account_targets.process(positions)?;
+    let portfolio = Portfolio::load_from_file(opts.current_allocations)?;
+
+    let account = portfolio
+        .accounts
+        .iter()
+        .find(|a| a.account_number == account_targets.account_number)
+        .ok_or_else(|| {
+            anyhow!(
+                "Failed to find any positions for account {}",
+                account_targets.account_number
+            )
+        })?;
+    let actions = account_targets.process(account)?;
     println!("In order to maintain your target allocations, the following actions are necessary.");
     println!("Sell:");
     actions.iter().for_each(|(symbol, action)| {

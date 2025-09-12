@@ -1,8 +1,64 @@
+use std::{collections::HashMap, path::PathBuf};
+
 use serde::{Deserialize, Deserializer};
+use tracing::debug;
 
 use crate::{Dollar, Percent, RelativeDollar, RelativePercent};
 
-pub fn deserialize_optional_dollar<'de, D>(deserializer: D) -> Result<Option<Dollar>, D::Error>
+#[derive(Debug)]
+pub struct Account {
+    pub account_number: String,
+    pub positions: Vec<Position>,
+}
+
+#[derive(Debug)]
+pub struct Position {
+    pub symbol: String,
+    pub current_value: Dollar,
+    pub is_core: bool,
+}
+
+impl From<PositionRow> for Position {
+    fn from(row: PositionRow) -> Self {
+        Position {
+            symbol: row.symbol().to_owned(),
+            current_value: row.current_value,
+            is_core: row.is_core_position(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Portfolio {
+    pub accounts: Vec<Account>,
+}
+
+impl Portfolio {
+    pub fn load_from_file(path: PathBuf) -> anyhow::Result<Self> {
+        let mut position_reader = csv::Reader::from_path(path)?;
+        debug!("created reader");
+        let positions: Vec<PositionRow> = position_reader
+            .deserialize()
+            .filter_map(|record| record.ok())
+            .collect();
+        debug!(?positions, "got positions");
+        let mut accounts = HashMap::<String, Account>::new();
+        for position in positions {
+            accounts
+                .entry(position.account_number.clone())
+                .and_modify(|acc| acc.positions.push(position.clone().into()))
+                .or_insert(Account {
+                    account_number: position.account_number.clone(),
+                    positions: vec![position.into()],
+                });
+        }
+        Ok(Self {
+            accounts: accounts.into_values().collect(),
+        })
+    }
+}
+
+fn deserialize_optional_dollar<'de, D>(deserializer: D) -> Result<Option<Dollar>, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -15,7 +71,7 @@ where
     Ok(Some(value))
 }
 
-pub fn deserialize_dollar<'de, D>(deserializer: D) -> Result<Dollar, D::Error>
+fn deserialize_dollar<'de, D>(deserializer: D) -> Result<Dollar, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -24,7 +80,7 @@ where
     cleaned.parse().map_err(serde::de::Error::custom)
 }
 
-pub fn deserialize_percent<'de, D>(deserializer: D) -> Result<Percent, D::Error>
+fn deserialize_percent<'de, D>(deserializer: D) -> Result<Percent, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -33,8 +89,8 @@ where
     cleaned.parse().map_err(serde::de::Error::custom)
 }
 
-#[derive(Debug, Deserialize)]
-pub(crate) struct Position {
+#[derive(Debug, Deserialize, Clone)]
+struct PositionRow {
     #[serde(rename = "Account Number")]
     pub account_number: String,
     #[serde(rename = "Account Name")]
@@ -81,7 +137,7 @@ pub(crate) struct Position {
     _position_type: String,
 }
 
-impl Position {
+impl PositionRow {
     pub fn symbol(&self) -> &str {
         self.symbol.trim_end_matches("**")
     }
