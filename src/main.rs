@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use anyhow::Context;
 use clap::Parser;
 use directories::ProjectDirs;
@@ -19,16 +17,6 @@ pub enum Action {
     Nothing,
     Sell(Dollar),
     Buy(Dollar),
-}
-
-impl Display for Action {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Action::Nothing => write!(f, "no action needed"),
-            Action::Sell(v) => write!(f, "sell ${v:.2}"),
-            Action::Buy(v) => write!(f, "buy ${v:.2}"),
-        }
-    }
 }
 
 mod cli {
@@ -141,6 +129,8 @@ mod portfolio {
 }
 
 mod target {
+    use std::collections::HashMap;
+
     use anyhow::{anyhow, bail};
     use serde::Deserialize;
     use tracing::debug;
@@ -149,7 +139,6 @@ mod target {
 
     #[derive(Debug)]
     struct PositionAdjustment {
-        symbol: String,
         current_value: Dollar,
         desired_percent: Percent,
     }
@@ -190,52 +179,67 @@ mod target {
                 )
             }
             if core.current_value < self.core_position.minimum {
-                return Err(anyhow!(
+                bail!(
                     "Core position is currently below the target minimum: {} < {}",
                     core.current_value,
                     self.core_position.minimum
-                ));
+                );
             }
-            let to_distribute = core.current_value - self.core_position.minimum;
-            let mut adjustments: Vec<PositionAdjustment> = Vec::new();
+            if self
+                .position_targets
+                .iter()
+                .any(|p| p.symbol == core.symbol())
+            {
+                bail!("Core position cannot be in target list");
+            }
+            let mut adjustments: HashMap<String, PositionAdjustment> = HashMap::new();
             for target in self.position_targets.iter() {
-                let portfolio_pos = current
-                    .iter()
-                    .find(|&p| {
-                        p.symbol() == target.symbol && p.account_number == self.account_number
-                    })
-                    .ok_or_else(|| {
-                        anyhow!(
-                            "Couldn't find an entry for position {} in account {}",
-                            target.symbol,
-                            self.account_number
-                        )
-                    })?;
-                adjustments.push(PositionAdjustment {
-                    symbol: target.symbol.clone(),
-                    current_value: portfolio_pos.current_value,
-                    desired_percent: target.percent,
-                });
+                adjustments
+                    .entry(target.symbol.clone())
+                    .and_modify(|e| e.desired_percent = target.percent)
+                    .or_insert(PositionAdjustment {
+                        current_value: 0.0,
+                        desired_percent: target.percent,
+                    });
+            }
+            for pos in current.iter() {
+                adjustments
+                    .entry(pos.symbol().to_owned())
+                    .and_modify(|e| e.current_value = pos.current_value)
+                    .or_insert(PositionAdjustment {
+                        current_value: pos.current_value,
+                        desired_percent: 0.0,
+                    });
             }
 
-            let total_val =
-                adjustments.iter().map(|p| p.current_value).sum::<Dollar>() + to_distribute;
-            let mut actions: Vec<(String, Action)> = adjustments
+            let total_val = adjustments
+                .values()
+                .map(|pos| pos.current_value)
+                .sum::<Dollar>();
+            let to_distribute = total_val - self.core_position.minimum;
+            if to_distribute < 0.0 {
+                bail!("Not enough money to maintain core position minimum");
+            }
+            let actions: Vec<(String, Action)> = adjustments
                 .into_iter()
-                .map(|pos| {
-                    let desired_val = total_val * (pos.desired_percent / 100.0);
-                    let action = match desired_val - pos.current_value {
-                        val if val > 0.0 => Action::Buy(val),
-                        val if val < 0.0 => Action::Sell(val),
-                        _ => Action::Nothing,
+                .map(|(symbol, pos)| {
+                    let action = if symbol == self.core_position.symbol {
+                        if pos.current_value > self.core_position.minimum {
+                            Action::Sell(pos.current_value - self.core_position.minimum)
+                        } else {
+                            Action::Nothing
+                        }
+                    } else {
+                        let desired_val = to_distribute * (pos.desired_percent / 100.0);
+                        match desired_val - pos.current_value {
+                            val if val > 0.0 => Action::Buy(val.abs()),
+                            val if val < 0.0 => Action::Sell(val.abs()),
+                            _ => Action::Nothing,
+                        }
                     };
-                    (pos.symbol, action)
+                    (symbol, action)
                 })
                 .collect();
-            actions.push((
-                self.core_position.symbol.clone(),
-                Action::Sell(to_distribute),
-            ));
             debug!(?actions, "processed data");
             Ok(actions)
         }
@@ -280,9 +284,9 @@ mod target {
     #[derive(Debug, Deserialize)]
     #[serde(rename_all = "PascalCase")]
     pub struct CorePosition {
-        symbol: String,
+        pub symbol: String,
         /// Minimum amount to retain in the core position in dollars
-        minimum: f32,
+        pub minimum: f32,
     }
 
     #[derive(Debug, Deserialize, Clone)]
@@ -326,12 +330,25 @@ fn main() -> anyhow::Result<()> {
         .targets()
         .into_iter()
         .for_each(|pos| println!(" - {}: {:.1}%", pos.symbol, pos.percent));
-    println!("");
+    println!(
+        " - Core position({}): ${} Minimum",
+        account_targets.core_position.symbol, account_targets.core_position.minimum
+    );
+    println!();
 
     let actions = account_targets.process(positions)?;
-    println!("In order to maintain your target allocations, the following actions are necessary:");
-    actions
-        .iter()
-        .for_each(|(symbol, action)| println!(" - {symbol}: {action}"));
+    println!("In order to maintain your target allocations, the following actions are necessary.");
+    println!("Sell:");
+    actions.iter().for_each(|(symbol, action)| {
+        if let Action::Sell(val) = action {
+            println!(" - {symbol}: {val:.2}");
+        }
+    });
+    println!("Buy:");
+    actions.iter().for_each(|(symbol, action)| {
+        if let Action::Buy(val) = action {
+            println!(" - {symbol}: {val:.2}")
+        }
+    });
     Ok(())
 }
