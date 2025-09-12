@@ -2,7 +2,7 @@ AccountNumber: "X12345678"
 CorePosition:
   Symbol: "FCASH"
   Minimum: 2000
-Positions:
+Allocations:
   "BND": 25
   "VTI": 45
   "VXUS": 30

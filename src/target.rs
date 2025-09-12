@@ -13,22 +13,22 @@ struct PositionAdjustment {
 }
 
 #[derive(Debug)]
-pub struct AccountTarget {
+pub struct AllocationTargets {
     pub account_number: String,
     pub core_position: CorePosition,
-    targets: HashMap<String, Percent>,
+    allocations: HashMap<String, Percent>,
 }
 
-impl AccountTarget {
+impl AllocationTargets {
     pub(crate) fn load_from_file(path: &PathBuf) -> anyhow::Result<Self> {
         let targets_file =
             std::fs::File::open(path).with_context(|| format!("Failed to open file {path:?}"))?;
-        let account_targets: AccountTargetBuilder = serde_yaml::from_reader(targets_file)?;
-        account_targets.build()
+        let builder: AllocationTargetsBuilder = serde_yaml::from_reader(targets_file)?;
+        builder.build()
     }
 
     pub(crate) fn targets(&self) -> HashMap<String, Percent> {
-        self.targets.clone()
+        self.allocations.clone()
     }
 
     pub(crate) fn process(
@@ -56,16 +56,16 @@ impl AccountTarget {
                 self.core_position.symbol
             )
         }
-        if self.targets.contains_key(&core.symbol) {
+        if self.allocations.contains_key(&core.symbol) {
             bail!("Core position cannot be in target list");
         }
-        for (symbol, _) in self.targets.iter() {
+        for (symbol, _) in self.allocations.iter() {
             if ignore.iter().any(|i| symbol.eq_ignore_ascii_case(i)) {
                 bail!("Can't ignore symbol '{symbol}': it is specified in the target allocation")
             }
         }
         let mut adjustments: HashMap<String, PositionAdjustment> = HashMap::new();
-        for (target_symbol, &target_percent) in self.targets.iter() {
+        for (target_symbol, &target_percent) in self.allocations.iter() {
             adjustments
                 .entry(target_symbol.clone())
                 .and_modify(|e| e.desired_percent = target_percent)
@@ -129,28 +129,28 @@ impl AccountTarget {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "PascalCase")]
-struct AccountTargetBuilder {
+struct AllocationTargetsBuilder {
     pub account_number: String,
     pub core_position: CorePosition,
-    pub positions: HashMap<String, Percent>,
+    pub allocations: HashMap<String, Percent>,
 }
 
-impl TryInto<AccountTarget> for AccountTargetBuilder {
+impl TryInto<AllocationTargets> for AllocationTargetsBuilder {
     type Error = anyhow::Error;
 
-    fn try_into(self) -> Result<AccountTarget, Self::Error> {
+    fn try_into(self) -> Result<AllocationTargets, Self::Error> {
         self.validate()?;
-        Ok(AccountTarget {
+        Ok(AllocationTargets {
             account_number: self.account_number,
             core_position: self.core_position,
-            targets: self.positions,
+            allocations: self.allocations,
         })
     }
 }
 
-impl AccountTargetBuilder {
+impl AllocationTargetsBuilder {
     fn validate(&self) -> anyhow::Result<()> {
-        let total_percent: f32 = self.positions.values().sum();
+        let total_percent: f32 = self.allocations.values().sum();
         anyhow::ensure!(
             total_percent == 100.0,
             "Target positions do not add up to 100%"
@@ -158,7 +158,7 @@ impl AccountTargetBuilder {
         Ok(())
     }
 
-    pub fn build(self) -> anyhow::Result<AccountTarget> {
+    pub fn build(self) -> anyhow::Result<AllocationTargets> {
         self.try_into()
     }
 }

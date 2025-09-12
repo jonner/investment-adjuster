@@ -9,7 +9,7 @@ use tabled::{
     },
 };
 
-use crate::{portfolio::Portfolio, target::AccountTarget};
+use crate::{portfolio::Portfolio, target::AllocationTargets};
 
 type Dollar = f32;
 // FIXME: handle dollar sign and plus/minus
@@ -89,22 +89,22 @@ fn main() -> anyhow::Result<()> {
     else {
         anyhow::bail!("Failed to get target path");
     };
-    let account_targets = AccountTarget::load_from_file(&targets_path)?;
+    let targets = AllocationTargets::load_from_file(&targets_path)?;
     let portfolio = Portfolio::load_from_file(&opts.current_allocations, opts.provider)?;
     let account = portfolio
         .accounts
         .into_iter()
-        .find(|a| a.account_number == account_targets.account_number)
+        .find(|a| a.account_number == targets.account_number)
         .ok_or_else(|| {
             anyhow!(
                 "Failed to find any positions for account {}",
-                account_targets.account_number
+                targets.account_number
             )
         })?;
 
-    let actions = account_targets.process(&account, &opts.ignore)?;
+    let actions = targets.process(&account, &opts.ignore)?;
 
-    println!("Account {}", account_targets.account_number);
+    println!("Account {}", targets.account_number);
     let total: f32 = account.positions.iter().map(|pos| pos.current_value).sum();
     let rows: Vec<AllocationTableRow> = account
         .positions
@@ -113,9 +113,9 @@ fn main() -> anyhow::Result<()> {
             symbol: pos.symbol.clone(),
             current_value: pos.current_value,
             current_percentage: pos.current_value / total * 100.0,
-            target: account_targets.targets().get(&pos.symbol).copied(),
-            minimum: match pos.is_core && account_targets.core_position.minimum > 0.0 {
-                true => Some(account_targets.core_position.minimum),
+            target: targets.targets().get(&pos.symbol).copied(),
+            minimum: match pos.is_core && targets.core_position.minimum > 0.0 {
+                true => Some(targets.core_position.minimum),
                 false => None,
             },
             buy: actions
