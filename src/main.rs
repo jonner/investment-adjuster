@@ -132,7 +132,11 @@ fn main() -> anyhow::Result<()> {
                     Action::Sell(val) => Some(*val),
                     _ => None,
                 }),
-            ignore: opts.ignore.contains(&pos.symbol),
+            ignore: actions
+                .iter()
+                .find(|(symbol, _)| symbol == &pos.symbol)
+                .map(|(_, action)| matches!(action, Action::Ignore))
+                .unwrap_or(false),
         })
         .collect();
     let ignored_rows = find_ignored_rows(&rows);

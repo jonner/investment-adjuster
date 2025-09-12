@@ -60,7 +60,7 @@ impl AccountTarget {
             bail!("Core position cannot be in target list");
         }
         for (symbol, _) in self.targets.iter() {
-            if ignore.contains(symbol) {
+            if ignore.iter().any(|i| symbol.eq_ignore_ascii_case(i)) {
                 bail!("Can't ignore symbol '{symbol}': it is specified in the target allocation")
             }
         }
@@ -86,10 +86,12 @@ impl AccountTarget {
 
         let total_val = adjustments
             .iter()
-            .filter_map(|(sym, adj)| match ignore.contains(sym) {
-                true => None,
-                false => Some(adj.current_value),
-            })
+            .filter_map(
+                |(sym, adj)| match ignore.iter().any(|i| sym.eq_ignore_ascii_case(i)) {
+                    true => None,
+                    false => Some(adj.current_value),
+                },
+            )
             .sum::<Dollar>();
         let to_distribute = total_val - self.core_position.minimum;
         if to_distribute < 0.0 {
@@ -98,7 +100,7 @@ impl AccountTarget {
         let actions: Vec<(String, Action)> = adjustments
             .into_iter()
             .map(|(symbol, pos)| {
-                let action = match ignore.contains(&symbol) {
+                let action = match ignore.iter().any(|i| i.eq_ignore_ascii_case(&symbol)) {
                     true => Action::Ignore,
                     false => {
                         if symbol == self.core_position.symbol {
