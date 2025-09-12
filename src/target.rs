@@ -107,6 +107,8 @@ impl AllocationTargets {
                         if symbol == self.core_position.symbol {
                             if pos.current_value > self.core_position.minimum {
                                 Action::Sell(pos.current_value - self.core_position.minimum)
+                            } else if pos.current_value < self.core_position.minimum {
+                                Action::Buy(self.core_position.minimum - pos.current_value)
                             } else {
                                 Action::Nothing
                             }
