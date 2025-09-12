@@ -20,9 +20,9 @@ pub struct AccountTarget {
 }
 
 impl AccountTarget {
-    pub(crate) fn load_from_file(path: PathBuf) -> anyhow::Result<Self> {
+    pub(crate) fn load_from_file(path: &PathBuf) -> anyhow::Result<Self> {
         let targets_file =
-            std::fs::File::open(&path).with_context(|| format!("Failed to open file {path:?}"))?;
+            std::fs::File::open(path).with_context(|| format!("Failed to open file {path:?}"))?;
         let account_targets: AccountTargetBuilder = serde_yaml::from_reader(targets_file)?;
         account_targets.build()
     }
