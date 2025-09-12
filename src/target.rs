@@ -56,13 +56,6 @@ impl AccountTarget {
                 self.core_position.symbol
             )
         }
-        if core.current_value < self.core_position.minimum {
-            bail!(
-                "Core position is currently below the target minimum: {} < {}",
-                core.current_value,
-                self.core_position.minimum
-            );
-        }
         if self.targets.contains_key(&core.symbol) {
             bail!("Core position cannot be in target list");
         }
