@@ -34,7 +34,7 @@ impl AccountTarget {
     pub(crate) fn process(
         &self,
         account: &Account,
-        ignore: Vec<String>,
+        ignore: &[String],
     ) -> anyhow::Result<Vec<(String, Action)>> {
         let core = account
             .positions
@@ -104,25 +104,27 @@ impl AccountTarget {
         }
         let actions: Vec<(String, Action)> = adjustments
             .into_iter()
-            .filter_map(|(symbol, pos)| match ignore.contains(&symbol) {
-                true => None,
-                false => {
-                    let action = if symbol == self.core_position.symbol {
-                        if pos.current_value > self.core_position.minimum {
-                            Action::Sell(pos.current_value - self.core_position.minimum)
+            .map(|(symbol, pos)| {
+                let action = match ignore.contains(&symbol) {
+                    true => Action::Ignore,
+                    false => {
+                        if symbol == self.core_position.symbol {
+                            if pos.current_value > self.core_position.minimum {
+                                Action::Sell(pos.current_value - self.core_position.minimum)
+                            } else {
+                                Action::Nothing
+                            }
                         } else {
-                            Action::Nothing
+                            let desired_val = to_distribute * (pos.desired_percent / 100.0);
+                            match desired_val - pos.current_value {
+                                val if val > 0.0 => Action::Buy(val.abs()),
+                                val if val < 0.0 => Action::Sell(val.abs()),
+                                _ => Action::Nothing,
+                            }
                         }
-                    } else {
-                        let desired_val = to_distribute * (pos.desired_percent / 100.0);
-                        match desired_val - pos.current_value {
-                            val if val > 0.0 => Action::Buy(val.abs()),
-                            val if val < 0.0 => Action::Sell(val.abs()),
-                            _ => Action::Nothing,
-                        }
-                    };
-                    Some((symbol, action))
-                }
+                    }
+                };
+                (symbol, action)
             })
             .collect();
         debug!(?actions, "processed data");

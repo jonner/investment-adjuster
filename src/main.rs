@@ -3,7 +3,10 @@ use clap::Parser;
 use directories::ProjectDirs;
 use tabled::{
     Table, Tabled,
-    settings::{Alignment, Style, object::Columns},
+    settings::{
+        Alignment, Color, Style,
+        object::{Columns, Rows},
+    },
 };
 
 use crate::{portfolio::Portfolio, target::AccountTarget};
@@ -18,6 +21,7 @@ type RelativePercent = String;
 #[derive(Debug)]
 pub enum Action {
     Nothing,
+    Ignore,
     Sell(Dollar),
     Buy(Dollar),
 }
@@ -70,6 +74,8 @@ struct AllocationTableRow {
     sell: Option<Dollar>,
     #[tabled(rename = "Buy")]
     buy: Option<Dollar>,
+    #[tabled(skip)]
+    ignore: bool,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -87,7 +93,7 @@ fn main() -> anyhow::Result<()> {
     let portfolio = Portfolio::load_from_file(&opts.current_allocations, opts.provider)?;
     let account = portfolio
         .accounts
-        .iter()
+        .into_iter()
         .find(|a| a.account_number == account_targets.account_number)
         .ok_or_else(|| {
             anyhow!(
@@ -96,13 +102,13 @@ fn main() -> anyhow::Result<()> {
             )
         })?;
 
-    let actions = account_targets.process(account, opts.ignore)?;
+    let actions = account_targets.process(&account, &opts.ignore)?;
 
     println!("Account {}", account_targets.account_number);
     let total: f32 = account.positions.iter().map(|pos| pos.current_value).sum();
     let rows: Vec<AllocationTableRow> = account
         .positions
-        .iter()
+        .into_iter()
         .map(|pos| AllocationTableRow {
             symbol: pos.symbol.clone(),
             current_value: pos.current_value,
@@ -126,12 +132,28 @@ fn main() -> anyhow::Result<()> {
                     Action::Sell(val) => Some(*val),
                     _ => None,
                 }),
+            ignore: opts.ignore.contains(&pos.symbol),
         })
         .collect();
+    let ignored_rows = find_ignored_rows(&rows);
     let mut table = Table::new(rows);
     table.with(Style::rounded());
     table.modify(Columns::new(..), Alignment::right());
+    for r in ignored_rows {
+        table.modify(Rows::one(r), Color::rgb_fg(150, 150, 150));
+    }
     println!("{table}");
     println!("[ To change allocation targets, edit the file {targets_path:?} ]");
     Ok(())
+}
+
+fn find_ignored_rows(rows: &[AllocationTableRow]) -> Vec<usize> {
+    let mut ignored_rows = Vec::new();
+    for (i, row) in rows.iter().enumerate() {
+        if row.ignore {
+            // header row is techincally the first row
+            ignored_rows.push(i + 1)
+        }
+    }
+    ignored_rows
 }
