@@ -31,7 +31,11 @@ impl AccountTarget {
         self.targets.clone()
     }
 
-    pub(crate) fn process(&self, account: &Account) -> anyhow::Result<Vec<(String, Action)>> {
+    pub(crate) fn process(
+        &self,
+        account: &Account,
+        ignore: Vec<String>,
+    ) -> anyhow::Result<Vec<(String, Action)>> {
         let core = account
             .positions
             .iter()
@@ -62,6 +66,11 @@ impl AccountTarget {
         if self.targets.contains_key(&core.symbol) {
             bail!("Core position cannot be in target list");
         }
+        for (symbol, _) in self.targets.iter() {
+            if ignore.contains(symbol) {
+                bail!("Can't ignore symbol '{symbol}': it is specified in the target allocation")
+            }
+        }
         let mut adjustments: HashMap<String, PositionAdjustment> = HashMap::new();
         for (target_symbol, &target_percent) in self.targets.iter() {
             adjustments
@@ -83,8 +92,11 @@ impl AccountTarget {
         }
 
         let total_val = adjustments
-            .values()
-            .map(|pos| pos.current_value)
+            .iter()
+            .filter_map(|(sym, adj)| match ignore.contains(sym) {
+                true => None,
+                false => Some(adj.current_value),
+            })
             .sum::<Dollar>();
         let to_distribute = total_val - self.core_position.minimum;
         if to_distribute < 0.0 {
@@ -92,22 +104,25 @@ impl AccountTarget {
         }
         let actions: Vec<(String, Action)> = adjustments
             .into_iter()
-            .map(|(symbol, pos)| {
-                let action = if symbol == self.core_position.symbol {
-                    if pos.current_value > self.core_position.minimum {
-                        Action::Sell(pos.current_value - self.core_position.minimum)
+            .filter_map(|(symbol, pos)| match ignore.contains(&symbol) {
+                true => None,
+                false => {
+                    let action = if symbol == self.core_position.symbol {
+                        if pos.current_value > self.core_position.minimum {
+                            Action::Sell(pos.current_value - self.core_position.minimum)
+                        } else {
+                            Action::Nothing
+                        }
                     } else {
-                        Action::Nothing
-                    }
-                } else {
-                    let desired_val = to_distribute * (pos.desired_percent / 100.0);
-                    match desired_val - pos.current_value {
-                        val if val > 0.0 => Action::Buy(val.abs()),
-                        val if val < 0.0 => Action::Sell(val.abs()),
-                        _ => Action::Nothing,
-                    }
-                };
-                (symbol, action)
+                        let desired_val = to_distribute * (pos.desired_percent / 100.0);
+                        match desired_val - pos.current_value {
+                            val if val > 0.0 => Action::Buy(val.abs()),
+                            val if val < 0.0 => Action::Sell(val.abs()),
+                            _ => Action::Nothing,
+                        }
+                    };
+                    Some((symbol, action))
+                }
             })
             .collect();
         debug!(?actions, "processed data");

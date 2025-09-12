@@ -93,7 +93,7 @@ fn main() -> anyhow::Result<()> {
             )
         })?;
 
-    let actions = account_targets.process(account)?;
+    let actions = account_targets.process(account, opts.ignore)?;
 
     println!("Account {}", account_targets.account_number);
     let total: f32 = account.positions.iter().map(|pos| pos.current_value).sum();
