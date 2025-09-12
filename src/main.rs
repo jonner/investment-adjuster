@@ -51,20 +51,24 @@ fn display_optional_percentage(val: &Option<Percent>) -> String {
 }
 
 #[derive(Debug, Tabled)]
+#[tabled(display(Dollar, "display_dollar"))]
+#[tabled(display(Option<Dollar>, "display_optional_dollar"))]
+#[tabled(display(Percent, "display_percentage"))]
+#[tabled(display(Option<Percent>, "display_optional_percentage"))]
 struct AllocationTableRow {
     #[tabled(rename = "Symbol")]
     symbol: String,
-    #[tabled(rename = "Value", display = "display_dollar")]
+    #[tabled(rename = "Value")]
     current_value: Dollar,
-    #[tabled(rename = "Percent", display = "display_percentage")]
+    #[tabled(rename = "Percent")]
     current_percentage: Percent,
-    #[tabled(rename = "Target", display = "display_optional_percentage")]
+    #[tabled(rename = "Target")]
     target: Option<Percent>,
-    #[tabled(rename = "Retain", display = "display_optional_dollar")]
+    #[tabled(rename = "Retain")]
     minimum: Option<Dollar>,
-    #[tabled(rename = "Sell", display = "display_optional_dollar")]
+    #[tabled(rename = "Sell")]
     sell: Option<Dollar>,
-    #[tabled(rename = "Buy", display = "display_optional_dollar")]
+    #[tabled(rename = "Buy")]
     buy: Option<Dollar>,
 }
 
