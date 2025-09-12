@@ -3,10 +3,7 @@ CorePosition:
   Symbol: "FCASH"
   Minimum: 2000
 Positions:
-  - Symbol: "VTI"
-    Percent: 45
-  - Symbol: "VXUS"
-    Percent: 30
-  - Symbol: "BND"
-    Percent: 25
+  "BND": 25
+  "VTI": 45
+  "VXUS": 30
 

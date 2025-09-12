@@ -53,7 +53,7 @@ fn main() -> anyhow::Result<()> {
     account_targets
         .targets()
         .into_iter()
-        .for_each(|pos| println!(" - {}: {:.1}%", pos.symbol, pos.percent));
+        .for_each(|(symbol, percent)| println!(" - {}: {:.1}%", symbol, percent));
     println!(
         " - Core position({}): ${} Minimum",
         account_targets.core_position.symbol, account_targets.core_position.minimum

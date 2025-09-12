@@ -16,12 +16,12 @@ struct PositionAdjustment {
 pub struct AccountTarget {
     pub account_number: String,
     pub core_position: CorePosition,
-    position_targets: Vec<PositionTarget>,
+    targets: HashMap<String, Percent>,
 }
 
 impl AccountTarget {
-    pub(crate) fn targets(&self) -> Vec<PositionTarget> {
-        self.position_targets.clone()
+    pub(crate) fn targets(&self) -> HashMap<String, Percent> {
+        self.targets.clone()
     }
 
     pub(crate) fn process(
@@ -54,21 +54,17 @@ impl AccountTarget {
                 self.core_position.minimum
             );
         }
-        if self
-            .position_targets
-            .iter()
-            .any(|p| p.symbol == core.symbol())
-        {
+        if self.targets.contains_key(core.symbol()) {
             bail!("Core position cannot be in target list");
         }
         let mut adjustments: HashMap<String, PositionAdjustment> = HashMap::new();
-        for target in self.position_targets.iter() {
+        for (target_symbol, &target_percent) in self.targets.iter() {
             adjustments
-                .entry(target.symbol.clone())
-                .and_modify(|e| e.desired_percent = target.percent)
+                .entry(target_symbol.clone())
+                .and_modify(|e| e.desired_percent = target_percent)
                 .or_insert(PositionAdjustment {
                     current_value: 0.0,
-                    desired_percent: target.percent,
+                    desired_percent: target_percent,
                 });
         }
         for pos in current.iter() {
@@ -119,7 +115,7 @@ impl AccountTarget {
 pub struct AccountTargetBuilder {
     pub account_number: String,
     pub core_position: CorePosition,
-    pub positions: Vec<PositionTarget>,
+    pub positions: HashMap<String, Percent>,
 }
 
 impl TryInto<AccountTarget> for AccountTargetBuilder {
@@ -130,14 +126,14 @@ impl TryInto<AccountTarget> for AccountTargetBuilder {
         Ok(AccountTarget {
             account_number: self.account_number,
             core_position: self.core_position,
-            position_targets: self.positions,
+            targets: self.positions,
         })
     }
 }
 
 impl AccountTargetBuilder {
     fn validate(&self) -> anyhow::Result<()> {
-        let total_percent: f32 = self.positions.iter().map(|position| position.percent).sum();
+        let total_percent: f32 = self.positions.values().sum();
         anyhow::ensure!(
             total_percent == 100.0,
             "Target positions do not add up to 100%"
@@ -156,11 +152,4 @@ pub struct CorePosition {
     pub symbol: String,
     /// Minimum amount to retain in the core position in dollars
     pub minimum: f32,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-#[serde(rename_all = "PascalCase")]
-pub struct PositionTarget {
-    pub symbol: String,
-    pub percent: Percent,
 }
