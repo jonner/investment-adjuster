@@ -80,7 +80,8 @@ fn main() -> anyhow::Result<()> {
         anyhow::bail!("Failed to get target path");
     };
     let account_targets = AccountTarget::load_from_file(&targets_path)?;
-    let portfolio = Portfolio::load_from_file(opts.current_allocations)?;
+    let portfolio =
+        Portfolio::load_from_file(&opts.current_allocations, portfolio::Provider::Fidelity)?;
     let account = portfolio
         .accounts
         .iter()
