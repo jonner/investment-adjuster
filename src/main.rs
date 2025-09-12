@@ -148,7 +148,7 @@ mod target {
     use crate::{Action, Dollar, Percent};
 
     #[derive(Debug)]
-    struct PositionProcess {
+    struct PositionAdjustment {
         symbol: String,
         current_value: Dollar,
         desired_percent: Percent,
@@ -197,7 +197,7 @@ mod target {
                 ));
             }
             let to_distribute = core.current_value - self.core_position.minimum;
-            let mut current_positions: Vec<PositionProcess> = Vec::new();
+            let mut adjustments: Vec<PositionAdjustment> = Vec::new();
             for target in self.position_targets.iter() {
                 let portfolio_pos = current
                     .iter()
@@ -211,19 +211,16 @@ mod target {
                             self.account_number
                         )
                     })?;
-                current_positions.push(PositionProcess {
+                adjustments.push(PositionAdjustment {
                     symbol: target.symbol.clone(),
                     current_value: portfolio_pos.current_value,
                     desired_percent: target.percent,
                 });
             }
 
-            let total_val = current_positions
-                .iter()
-                .map(|p| p.current_value)
-                .sum::<Dollar>()
-                + to_distribute;
-            let mut actions: Vec<(String, Action)> = current_positions
+            let total_val =
+                adjustments.iter().map(|p| p.current_value).sum::<Dollar>() + to_distribute;
+            let mut actions: Vec<(String, Action)> = adjustments
                 .into_iter()
                 .map(|pos| {
                     let desired_val = total_val * (pos.desired_percent / 100.0);
