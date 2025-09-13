@@ -10,6 +10,7 @@ use crate::{Action, Dollar, Percent, portfolio::AccountBalance};
 struct PositionAdjustment {
     current_value: Dollar,
     desired_percent: Percent,
+    ignored: bool,
 }
 
 #[derive(Debug)]
@@ -35,7 +36,6 @@ impl AllocationTargets {
     pub(crate) fn adjust_allocations(
         &self,
         balance: &AccountBalance,
-        ignore: &[String],
     ) -> anyhow::Result<Vec<(String, Action)>> {
         let core = balance
             .positions
@@ -60,11 +60,6 @@ impl AllocationTargets {
         if self.targets.contains_key(&core.symbol) {
             bail!("Core position cannot be in target list");
         }
-        for (symbol, _) in self.targets.iter() {
-            if ignore.iter().any(|i| symbol.eq_ignore_ascii_case(i)) {
-                bail!("Can't ignore symbol '{symbol}': it is specified in the target allocation")
-            }
-        }
         let mut adjustments: HashMap<String, PositionAdjustment> = HashMap::new();
         for (target_symbol, &target_percent) in self.targets.iter() {
             adjustments
@@ -73,6 +68,7 @@ impl AllocationTargets {
                 .or_insert(PositionAdjustment {
                     current_value: 0.0,
                     desired_percent: target_percent,
+                    ignored: false,
                 });
         }
         for pos in balance.positions.iter() {
@@ -82,17 +78,25 @@ impl AllocationTargets {
                 .or_insert(PositionAdjustment {
                     current_value: pos.current_value,
                     desired_percent: 0.0,
+                    ignored: pos.ignored,
                 });
+        }
+
+        for (symbol, adj) in adjustments.iter() {
+            if adj.ignored && adj.desired_percent != 0.0 {
+                bail!("Can't ignore symbol '{symbol}': it is specified in the target allocation")
+            }
         }
 
         let total_val = adjustments
             .iter()
-            .filter_map(
-                |(sym, adj)| match ignore.iter().any(|i| sym.eq_ignore_ascii_case(i)) {
-                    true => None,
-                    false => Some(adj.current_value),
-                },
-            )
+            .filter_map(|(_, adj)| {
+                if adj.ignored {
+                    None
+                } else {
+                    Some(adj.current_value)
+                }
+            })
             .sum::<Dollar>();
         let to_distribute = total_val - self.core_position.minimum;
         if to_distribute < 0.0 {
@@ -100,26 +104,23 @@ impl AllocationTargets {
         }
         let actions: Vec<(String, Action)> = adjustments
             .into_iter()
-            .map(|(symbol, pos)| {
-                let action = match ignore.iter().any(|i| i.eq_ignore_ascii_case(&symbol)) {
-                    true => Action::Ignore,
-                    false => {
-                        if symbol == self.core_position.symbol {
-                            if pos.current_value > self.core_position.minimum {
-                                Action::Sell(pos.current_value - self.core_position.minimum)
-                            } else if pos.current_value < self.core_position.minimum {
-                                Action::Buy(self.core_position.minimum - pos.current_value)
-                            } else {
-                                Action::Nothing
-                            }
-                        } else {
-                            let desired_val = to_distribute * (pos.desired_percent / 100.0);
-                            match desired_val - pos.current_value {
-                                val if val > 0.0 => Action::Buy(val.abs()),
-                                val if val < 0.0 => Action::Sell(val.abs()),
-                                _ => Action::Nothing,
-                            }
-                        }
+            .map(|(symbol, adj)| {
+                let action = if adj.ignored {
+                    Action::Ignore
+                } else if symbol == self.core_position.symbol {
+                    if adj.current_value > self.core_position.minimum {
+                        Action::Sell(adj.current_value - self.core_position.minimum)
+                    } else if adj.current_value < self.core_position.minimum {
+                        Action::Buy(self.core_position.minimum - adj.current_value)
+                    } else {
+                        Action::Nothing
+                    }
+                } else {
+                    let desired_val = to_distribute * (adj.desired_percent / 100.0);
+                    match desired_val - adj.current_value {
+                        val if val > 0.0 => Action::Buy(val.abs()),
+                        val if val < 0.0 => Action::Sell(val.abs()),
+                        _ => Action::Nothing,
                     }
                 };
                 (symbol, action)

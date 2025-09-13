@@ -105,6 +105,7 @@ mod provider {
                     symbol: row.symbol().to_owned(),
                     current_value: row.current_value,
                     is_core: row.is_core_position(),
+                    ignored: false,
                 }
             }
         }
@@ -117,11 +118,22 @@ pub struct AccountBalance {
     pub positions: Vec<Position>,
 }
 
+impl AccountBalance {
+    pub fn set_ignored(&mut self, ignored: &[String]) {
+        for pos in self.positions.iter_mut() {
+            if ignored.iter().any(|i| i.eq_ignore_ascii_case(&pos.symbol)) {
+                pos.ignored = true;
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Position {
     pub symbol: String,
     pub current_value: Dollar,
     pub is_core: bool,
+    pub ignored: bool,
 }
 
 #[derive(Debug)]

@@ -91,7 +91,7 @@ fn main() -> anyhow::Result<()> {
     };
     let targets = AllocationTargets::load_from_file(&targets_path)?;
     let portfolio = Portfolio::load_from_file(&opts.current_allocations, opts.provider)?;
-    let account = portfolio
+    let mut account = portfolio
         .accounts
         .into_iter()
         .find(|a| a.account_number == targets.account_number)
@@ -101,8 +101,9 @@ fn main() -> anyhow::Result<()> {
                 targets.account_number
             )
         })?;
+    account.set_ignored(&opts.ignore);
 
-    let actions = targets.adjust_allocations(&account, &opts.ignore)?;
+    let actions = targets.adjust_allocations(&account)?;
 
     println!("Account {}", targets.account_number);
     let total: f32 = account.positions.iter().map(|pos| pos.current_value).sum();
