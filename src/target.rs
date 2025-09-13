@@ -9,7 +9,7 @@ use crate::{Action, Dollar, Percent, portfolio::AccountBalance};
 #[derive(Debug)]
 struct PositionAdjustment {
     current_value: Dollar,
-    desired_percent: Percent,
+    target: Percent,
     ignored: bool,
 }
 
@@ -64,10 +64,10 @@ impl AllocationTargets {
         for (target_symbol, &target_percent) in self.targets.iter() {
             adjustments
                 .entry(target_symbol.clone())
-                .and_modify(|e| e.desired_percent = target_percent)
+                .and_modify(|e| e.target = target_percent)
                 .or_insert(PositionAdjustment {
                     current_value: 0.0,
-                    desired_percent: target_percent,
+                    target: target_percent,
                     ignored: false,
                 });
         }
@@ -77,13 +77,13 @@ impl AllocationTargets {
                 .and_modify(|e| e.current_value = pos.current_value)
                 .or_insert(PositionAdjustment {
                     current_value: pos.current_value,
-                    desired_percent: 0.0,
+                    target: 0.0,
                     ignored: pos.ignored,
                 });
         }
 
         for (symbol, adj) in adjustments.iter() {
-            if adj.ignored && adj.desired_percent != 0.0 {
+            if adj.ignored && adj.target != 0.0 {
                 bail!("Can't ignore symbol '{symbol}': it is specified in the target allocation")
             }
         }
@@ -100,8 +100,11 @@ impl AllocationTargets {
             .sum::<Dollar>();
         let to_distribute = total_val - self.core_position.minimum;
         if to_distribute < 0.0 {
-            bail!("Not enough money to maintain core position minimum");
+            bail!(
+                "Not enough value to maintain core position minimum. Sell all investments or transfer more into account."
+            );
         }
+
         let actions: Vec<(String, Action)> = adjustments
             .into_iter()
             .map(|(symbol, adj)| {
@@ -116,7 +119,7 @@ impl AllocationTargets {
                         Action::Nothing
                     }
                 } else {
-                    let desired_val = to_distribute * (adj.desired_percent / 100.0);
+                    let desired_val = to_distribute * (adj.target / 100.0);
                     match desired_val - adj.current_value {
                         val if val > 0.0 => Action::Buy(val.abs()),
                         val if val < 0.0 => Action::Sell(val.abs()),
