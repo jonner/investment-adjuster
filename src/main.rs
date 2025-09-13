@@ -90,7 +90,7 @@ fn main() -> anyhow::Result<()> {
         anyhow::bail!("Failed to get target path");
     };
     let targets = AllocationTargets::load_from_file(&targets_path)?;
-    let portfolio = Portfolio::load_from_file(&opts.current_allocations, opts.provider)?;
+    let portfolio = Portfolio::load_from_file(&opts.account_balance, opts.provider)?;
     let mut account = portfolio
         .accounts
         .into_iter()

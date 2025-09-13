@@ -6,10 +6,17 @@ use crate::portfolio::Provider;
 
 #[derive(Parser, Debug)]
 pub(crate) struct Cli {
-    #[arg(short, long, help = "Target allocation")]
+    #[arg(
+        short,
+        long,
+        help = "Override global target allocation configuration file"
+    )]
     pub target: Option<PathBuf>,
-    #[arg(help = "Current allocation CSV downloaded from fidelity")]
-    pub current_allocations: PathBuf,
+    #[arg(
+        value_name = "CSV FILE",
+        help = "A CSV file containing account balances"
+    )]
+    pub account_balance: PathBuf,
     #[arg(
         short,
         long,
