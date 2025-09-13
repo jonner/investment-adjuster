@@ -32,7 +32,7 @@ impl AllocationTargets {
         self.allocations.clone()
     }
 
-    pub(crate) fn process(
+    pub(crate) fn adjust_allocations(
         &self,
         account: &Account,
         ignore: &[String],

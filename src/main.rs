@@ -102,7 +102,7 @@ fn main() -> anyhow::Result<()> {
             )
         })?;
 
-    let actions = targets.process(&account, &opts.ignore)?;
+    let actions = targets.adjust_allocations(&account, &opts.ignore)?;
 
     println!("Account {}", targets.account_number);
     let total: f32 = account.positions.iter().map(|pos| pos.current_value).sum();
