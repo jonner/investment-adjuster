@@ -112,7 +112,7 @@ mod provider {
 }
 
 #[derive(Debug)]
-pub struct Account {
+pub struct AccountBalance {
     pub account_number: String,
     pub positions: Vec<Position>,
 }
@@ -126,7 +126,7 @@ pub struct Position {
 
 #[derive(Debug)]
 pub struct Portfolio {
-    pub accounts: Vec<Account>,
+    pub accounts: Vec<AccountBalance>,
 }
 
 #[derive(Clone, Debug, ValueEnum)]
@@ -145,12 +145,12 @@ impl Portfolio {
                     .filter_map(|record| record.inspect_err(|e| info!("{e}")).ok())
                     .collect();
                 debug!(?rows, "deserialized rows");
-                let mut accounts = HashMap::<String, Account>::new();
+                let mut accounts = HashMap::<String, AccountBalance>::new();
                 for row in rows {
                     accounts
                         .entry(row.account_number.clone())
                         .and_modify(|acc| acc.positions.push(row.clone().into()))
-                        .or_insert(Account {
+                        .or_insert(AccountBalance {
                             account_number: row.account_number.clone(),
                             positions: vec![row.into()],
                         });

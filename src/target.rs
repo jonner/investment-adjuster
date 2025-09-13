@@ -4,7 +4,7 @@ use anyhow::{Context, anyhow, bail};
 use serde::Deserialize;
 use tracing::debug;
 
-use crate::{Action, Dollar, Percent, portfolio::Account};
+use crate::{Action, Dollar, Percent, portfolio::AccountBalance};
 
 #[derive(Debug)]
 struct PositionAdjustment {
@@ -16,7 +16,7 @@ struct PositionAdjustment {
 pub struct AllocationTargets {
     pub account_number: String,
     pub core_position: CorePosition,
-    allocations: HashMap<String, Percent>,
+    targets: HashMap<String, Percent>,
 }
 
 impl AllocationTargets {
@@ -29,20 +29,20 @@ impl AllocationTargets {
     }
 
     pub(crate) fn targets(&self) -> HashMap<String, Percent> {
-        self.allocations.clone()
+        self.targets.clone()
     }
 
     pub(crate) fn adjust_allocations(
         &self,
-        account: &Account,
+        balance: &AccountBalance,
         ignore: &[String],
     ) -> anyhow::Result<Vec<(String, Action)>> {
-        let core = account
+        let core = balance
             .positions
             .iter()
             .find(|&pos| {
                 pos.symbol == self.core_position.symbol
-                    && account.account_number == self.account_number
+                    && balance.account_number == self.account_number
             })
             .ok_or_else(|| {
                 anyhow!(
@@ -53,20 +53,20 @@ impl AllocationTargets {
             })?;
         if !core.is_core {
             bail!(
-                "Found position {} but it is not marked as the core position",
+                "Found position {} but it was not marked as the core position in the provided data file",
                 self.core_position.symbol
             )
         }
-        if self.allocations.contains_key(&core.symbol) {
+        if self.targets.contains_key(&core.symbol) {
             bail!("Core position cannot be in target list");
         }
-        for (symbol, _) in self.allocations.iter() {
+        for (symbol, _) in self.targets.iter() {
             if ignore.iter().any(|i| symbol.eq_ignore_ascii_case(i)) {
                 bail!("Can't ignore symbol '{symbol}': it is specified in the target allocation")
             }
         }
         let mut adjustments: HashMap<String, PositionAdjustment> = HashMap::new();
-        for (target_symbol, &target_percent) in self.allocations.iter() {
+        for (target_symbol, &target_percent) in self.targets.iter() {
             adjustments
                 .entry(target_symbol.clone())
                 .and_modify(|e| e.desired_percent = target_percent)
@@ -75,7 +75,7 @@ impl AllocationTargets {
                     desired_percent: target_percent,
                 });
         }
-        for pos in account.positions.iter() {
+        for pos in balance.positions.iter() {
             adjustments
                 .entry(pos.symbol.to_owned())
                 .and_modify(|e| e.current_value = pos.current_value)
@@ -146,7 +146,7 @@ impl TryInto<AllocationTargets> for AllocationTargetsBuilder {
         Ok(AllocationTargets {
             account_number: self.account_number,
             core_position: self.core_position,
-            allocations: self.allocations,
+            targets: self.allocations,
         })
     }
 }
