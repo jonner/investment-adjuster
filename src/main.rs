@@ -12,11 +12,7 @@ use tabled::{
 use crate::{portfolio::Portfolio, target::AllocationTargets};
 
 type Dollar = f32;
-// FIXME: handle dollar sign and plus/minus
-type RelativeDollar = String;
 type Percent = f32;
-// FIXME: handle percent sign and plus/minus
-type RelativePercent = String;
 
 #[derive(Debug)]
 pub enum Action {
