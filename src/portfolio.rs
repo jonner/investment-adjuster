@@ -7,7 +7,7 @@ use crate::{Dollar, portfolio::provider::fidelity::FidelityCsvRow};
 
 mod provider {
     pub(crate) mod fidelity {
-        use crate::{Dollar, Percent, RelativeDollar, RelativePercent, portfolio::Position};
+        use crate::{Dollar, Percent, portfolio::Position};
         use serde::{Deserialize, Deserializer};
 
         fn deserialize_optional_dollar<'de, D>(deserializer: D) -> Result<Option<Dollar>, D::Error>
@@ -30,6 +30,21 @@ mod provider {
             let s = String::deserialize(deserializer)?;
             let cleaned = s.replace('$', "");
             cleaned.parse().map_err(serde::de::Error::custom)
+        }
+
+        fn deserialize_optional_percent<'de, D>(
+            deserializer: D,
+        ) -> Result<Option<Percent>, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            let s = String::deserialize(deserializer)?;
+            if s.trim().is_empty() {
+                return Ok(None);
+            }
+            let cleaned = s.replace('%', "");
+            let value = cleaned.parse().map_err(serde::de::Error::custom)?;
+            Ok(Some(value))
         }
 
         fn deserialize_percent<'de, D>(deserializer: D) -> Result<Percent, D::Error>
@@ -58,18 +73,33 @@ mod provider {
                 deserialize_with = "deserialize_optional_dollar"
             )]
             _last_price: Option<Dollar>,
-            #[serde(rename = "Last Price Change")]
-            _last_price_change: Option<RelativeDollar>,
+            #[serde(
+                rename = "Last Price Change",
+                deserialize_with = "deserialize_optional_dollar"
+            )]
+            _last_price_change: Option<Dollar>,
             #[serde(rename = "Current Value", deserialize_with = "deserialize_dollar")]
             pub current_value: Dollar,
-            #[serde(rename = "Today's Gain/Loss Dollar")]
-            _today_change_dollar: Option<RelativeDollar>,
-            #[serde(rename = "Today's Gain/Loss Percent")]
-            _today_change_percent: Option<RelativePercent>,
-            #[serde(rename = "Total Gain/Loss Dollar")]
-            _total_change_dollar: Option<RelativeDollar>,
-            #[serde(rename = "Total Gain/Loss Percent")]
-            _total_change_percent: Option<RelativePercent>,
+            #[serde(
+                rename = "Today's Gain/Loss Dollar",
+                deserialize_with = "deserialize_optional_dollar"
+            )]
+            _today_change_dollar: Option<Dollar>,
+            #[serde(
+                rename = "Today's Gain/Loss Percent",
+                deserialize_with = "deserialize_optional_percent"
+            )]
+            _today_change_percent: Option<Percent>,
+            #[serde(
+                rename = "Total Gain/Loss Dollar",
+                deserialize_with = "deserialize_optional_dollar"
+            )]
+            _total_change_dollar: Option<Dollar>,
+            #[serde(
+                rename = "Total Gain/Loss Percent",
+                deserialize_with = "deserialize_optional_percent"
+            )]
+            _total_change_percent: Option<Percent>,
             #[serde(
                 rename = "Percent Of Account",
                 deserialize_with = "deserialize_percent"
