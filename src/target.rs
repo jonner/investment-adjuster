@@ -175,5 +175,5 @@ impl AllocationTargetsBuilder {
 pub struct CorePosition {
     pub symbol: String,
     /// Minimum amount to retain in the core position in dollars
-    pub minimum: f32,
+    pub minimum: Dollar,
 }
