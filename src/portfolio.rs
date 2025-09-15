@@ -1,143 +1,86 @@
-use std::{collections::HashMap, fmt::Debug, path::PathBuf};
+use std::{fmt::Debug, path::PathBuf};
 
 use clap::ValueEnum;
-use tracing::debug;
 
-use crate::{Dollar, portfolio::provider::fidelity::FidelityCsvRow};
+use crate::Dollar;
 
 mod provider {
     pub(crate) mod fidelity {
-        use crate::{Dollar, Percent, portfolio::Position};
-        use serde::{Deserialize, Deserializer};
+        use std::{collections::HashMap, path::PathBuf};
 
-        fn deserialize_optional_dollar<'de, D>(deserializer: D) -> Result<Option<Dollar>, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            let s = String::deserialize(deserializer)?;
-            if s.trim().is_empty() {
-                return Ok(None);
+        use anyhow::{anyhow, bail};
+        use tracing::{debug, warn};
+
+        use crate::{
+            Dollar,
+            portfolio::{AccountBalance, Position},
+        };
+
+        pub enum Columns {
+            AccountNumber = 0,
+            AccountName = 1,
+            Symbol = 2,
+            CurrentValue = 7,
+        }
+
+        pub(crate) fn parse_accounts(
+            path: &PathBuf,
+        ) -> Result<HashMap<String, AccountBalance>, anyhow::Error> {
+            let mut csv_reader = csv::ReaderBuilder::new().flexible(true).from_path(path)?;
+            let headers = csv_reader.headers()?;
+            if headers.get(Columns::AccountNumber as usize) != Some("AccountNumber")
+                && headers.get(Columns::AccountName as usize) != Some("Account Name")
+                && headers.get(Columns::Symbol as usize) != Some("Symbol")
+                && headers.get(Columns::CurrentValue as usize) != Some("Current Value")
+            {
+                warn!(?headers, "Unexpected headers");
+                bail!("Unexpected csv file format");
             }
-            let cleaned = s.replace('$', "");
-            let value = cleaned.parse().map_err(serde::de::Error::custom)?;
-            Ok(Some(value))
-        }
-
-        fn deserialize_dollar<'de, D>(deserializer: D) -> Result<Dollar, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            let s = String::deserialize(deserializer)?;
-            let cleaned = s.replace('$', "");
-            cleaned.parse().map_err(serde::de::Error::custom)
-        }
-
-        fn deserialize_optional_percent<'de, D>(
-            deserializer: D,
-        ) -> Result<Option<Percent>, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            let s = String::deserialize(deserializer)?;
-            if s.trim().is_empty() {
-                return Ok(None);
-            }
-            let cleaned = s.replace('%', "");
-            let value = cleaned.parse().map_err(serde::de::Error::custom)?;
-            Ok(Some(value))
-        }
-
-        fn deserialize_percent<'de, D>(deserializer: D) -> Result<Percent, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            let s = String::deserialize(deserializer)?;
-            let cleaned = s.replace('%', "");
-            cleaned.parse().map_err(serde::de::Error::custom)
-        }
-
-        #[derive(Debug, Deserialize, Clone)]
-        pub struct FidelityCsvRow {
-            #[serde(rename = "Account Number")]
-            pub account_number: String,
-            #[serde(rename = "Account Name")]
-            _account_name: String,
-            #[serde(rename = "Symbol")]
-            symbol: String,
-            #[serde(rename = "Description")]
-            _description: String,
-            #[serde(rename = "Quantity")]
-            _quantity: Option<f32>,
-            #[serde(
-                rename = "Last Price",
-                deserialize_with = "deserialize_optional_dollar"
-            )]
-            _last_price: Option<Dollar>,
-            #[serde(
-                rename = "Last Price Change",
-                deserialize_with = "deserialize_optional_dollar"
-            )]
-            _last_price_change: Option<Dollar>,
-            #[serde(rename = "Current Value", deserialize_with = "deserialize_dollar")]
-            pub current_value: Dollar,
-            #[serde(
-                rename = "Today's Gain/Loss Dollar",
-                deserialize_with = "deserialize_optional_dollar"
-            )]
-            _today_change_dollar: Option<Dollar>,
-            #[serde(
-                rename = "Today's Gain/Loss Percent",
-                deserialize_with = "deserialize_optional_percent"
-            )]
-            _today_change_percent: Option<Percent>,
-            #[serde(
-                rename = "Total Gain/Loss Dollar",
-                deserialize_with = "deserialize_optional_dollar"
-            )]
-            _total_change_dollar: Option<Dollar>,
-            #[serde(
-                rename = "Total Gain/Loss Percent",
-                deserialize_with = "deserialize_optional_percent"
-            )]
-            _total_change_percent: Option<Percent>,
-            #[serde(
-                rename = "Percent Of Account",
-                deserialize_with = "deserialize_percent"
-            )]
-            _percent_of_account: Percent,
-            #[serde(
-                rename = "Cost Basis Total",
-                deserialize_with = "deserialize_optional_dollar"
-            )]
-            _cost_basis_total: Option<Dollar>,
-            #[serde(
-                rename = "Average Cost Basis",
-                deserialize_with = "deserialize_optional_dollar"
-            )]
-            _cost_basis_average: Option<Dollar>,
-            #[serde(rename = "Type")]
-            _position_type: String,
-        }
-
-        impl FidelityCsvRow {
-            pub fn symbol(&self) -> &str {
-                self.symbol.trim_end_matches("**")
-            }
-
-            pub fn is_core_position(&self) -> bool {
-                self.symbol.ends_with("**")
-            }
-        }
-
-        impl From<FidelityCsvRow> for Position {
-            fn from(row: FidelityCsvRow) -> Self {
-                Position {
-                    symbol: row.symbol().to_owned(),
-                    current_value: row.current_value,
-                    is_core: row.is_core_position(),
-                    ignored: false,
+            let mut accounts = HashMap::<String, AccountBalance>::new();
+            for row in csv_reader.records() {
+                let row = row?;
+                debug!(?row, "parsed row");
+                if row.len() < Columns::CurrentValue as usize {
+                    debug!(?row, "Row doesn't have enough fields to be a position");
+                    break;
+                }
+                let Some(account_number) = row.get(Columns::AccountNumber as usize) else {
+                    bail!("failed to get account number for row");
+                };
+                let acct = accounts
+                    .entry(account_number.to_string())
+                    .or_insert(AccountBalance {
+                        account_number: account_number.to_string(),
+                        positions: Default::default(),
+                    });
+                let symbol = row
+                    .get(Columns::Symbol as usize)
+                    .ok_or_else(|| anyhow!("Failed to get symbol"))?;
+                let current_value = row
+                    .get(Columns::CurrentValue as usize)
+                    .and_then(|s| s.replace('$', "").parse::<Dollar>().ok())
+                    .ok_or_else(|| anyhow!("Failed to get symbol"))?;
+                if symbol == "Pending activity" {
+                    debug!(?acct, "Adding pending activity to core position");
+                    acct.positions
+                        .iter_mut()
+                        .find(|p| p.is_core)
+                        .map(|p| p.current_value += current_value)
+                        .ok_or_else(|| {
+                            anyhow!("Failed to find core position for pending activity")
+                        })?;
+                } else {
+                    let pos = Position {
+                        symbol: symbol.trim_end_matches("**").to_string(),
+                        current_value,
+                        is_core: symbol.ends_with("**"),
+                        ignored: false,
+                    };
+                    debug!(?acct, ?pos, "adding regular position");
+                    acct.positions.push(pos);
                 }
             }
+            Ok(accounts)
         }
     }
 }
@@ -180,23 +123,7 @@ impl Portfolio {
     pub fn load_from_file(path: &PathBuf, provider: Provider) -> anyhow::Result<Self> {
         match provider {
             Provider::Fidelity => {
-                let mut csv_reader = csv::Reader::from_path(path)?;
-                debug!("created reader");
-                let rows: Vec<FidelityCsvRow> = csv_reader
-                    .deserialize()
-                    .filter_map(|record| record.inspect_err(|e| debug!("{e}")).ok())
-                    .collect();
-                debug!(?rows, "deserialized rows");
-                let mut accounts = HashMap::<String, AccountBalance>::new();
-                for row in rows {
-                    accounts
-                        .entry(row.account_number.clone())
-                        .and_modify(|acc| acc.positions.push(row.clone().into()))
-                        .or_insert(AccountBalance {
-                            account_number: row.account_number.clone(),
-                            positions: vec![row.into()],
-                        });
-                }
+                let accounts = provider::fidelity::parse_accounts(path)?;
                 Ok(Self {
                     accounts: accounts.into_values().collect(),
                 })
