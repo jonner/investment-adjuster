@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::anyhow;
 use clap::Parser;
 use directories::ProjectDirs;
@@ -9,7 +11,10 @@ use tabled::{
     },
 };
 
-use crate::{portfolio::Portfolio, target::AllocationTargets};
+use crate::{
+    portfolio::{AccountBalance, Portfolio},
+    target::AllocationTargets,
+};
 
 type Dollar = f32;
 type Percent = f32;
@@ -87,63 +92,69 @@ fn main() -> anyhow::Result<()> {
     };
     let targets = AllocationTargets::load_from_file(&targets_path)?;
     let portfolio = Portfolio::load_from_file(&opts.account_balance, opts.provider)?;
-    let mut account = portfolio
-        .accounts
-        .into_iter()
-        .find(|a| a.account_number == targets.account_number)
-        .ok_or_else(|| {
-            anyhow!(
-                "Failed to find any positions for account {}",
-                targets.account_number
-            )
-        })?;
-    account.set_ignored(&opts.ignore);
-
-    let actions = targets.adjust_allocations(&account)?;
-
-    println!("Account {}", targets.account_number);
-    let total: f32 = account.positions.iter().map(|pos| pos.current_value).sum();
-    let rows: Vec<AllocationTableRow> = account
-        .positions
-        .into_iter()
-        .map(|pos| AllocationTableRow {
-            symbol: pos.symbol.clone(),
-            current_value: pos.current_value,
-            current_percentage: pos.current_value / total * 100.0,
-            target: targets.targets().get(&pos.symbol).copied(),
-            minimum: match pos.is_core && targets.core_position.minimum > 0.0 {
-                true => Some(targets.core_position.minimum),
-                false => None,
-            },
-            buy: actions
-                .iter()
-                .find(|(symbol, _)| symbol == &pos.symbol)
-                .and_then(|(_, action)| match action {
-                    Action::Buy(val) => Some(*val),
-                    _ => None,
-                }),
-            sell: actions
-                .iter()
-                .find(|(symbol, _)| symbol == &pos.symbol)
-                .and_then(|(_, action)| match action {
-                    Action::Sell(val) => Some(*val),
-                    _ => None,
-                }),
-            ignore: actions
-                .iter()
-                .find(|(symbol, _)| symbol == &pos.symbol)
-                .map(|(_, action)| matches!(action, Action::Ignore))
-                .unwrap_or(false),
-        })
-        .collect();
-    let ignored_rows = find_ignored_rows(&rows);
-    let mut table = Table::new(rows);
-    table.with(Style::rounded());
-    table.modify(Columns::new(..), Alignment::right());
-    for r in ignored_rows {
-        table.modify(Rows::one(r), Color::rgb_fg(150, 150, 150));
+    let mut accounts_with_targets = HashMap::<String, (AccountBalance, AllocationTargets)>::new();
+    for account in portfolio.accounts {
+        if let Some(target) = targets
+            .iter()
+            .find(|t| t.account_number == account.account_number)
+        {
+            accounts_with_targets.insert(account.account_number.clone(), (account, target.clone()));
+        }
     }
-    println!("{table}");
+    if accounts_with_targets.is_empty() {
+        return Err(anyhow!(
+            "Failed to find any accounts with allocation targets",
+        ));
+    }
+    for (_, (mut account, targets)) in accounts_with_targets {
+        account.set_ignored(&opts.ignore);
+
+        let actions = targets.adjust_allocations(&account)?;
+
+        println!("Account {}", targets.account_number);
+        let total: f32 = account.positions.iter().map(|pos| pos.current_value).sum();
+        let rows: Vec<AllocationTableRow> = account
+            .positions
+            .into_iter()
+            .map(|pos| AllocationTableRow {
+                symbol: pos.symbol.clone(),
+                current_value: pos.current_value,
+                current_percentage: pos.current_value / total * 100.0,
+                target: targets.targets().get(&pos.symbol).copied(),
+                minimum: match pos.is_core && targets.core_position.minimum > 0.0 {
+                    true => Some(targets.core_position.minimum),
+                    false => None,
+                },
+                buy: actions
+                    .iter()
+                    .find(|(symbol, _)| symbol == &pos.symbol)
+                    .and_then(|(_, action)| match action {
+                        Action::Buy(val) => Some(*val),
+                        _ => None,
+                    }),
+                sell: actions
+                    .iter()
+                    .find(|(symbol, _)| symbol == &pos.symbol)
+                    .and_then(|(_, action)| match action {
+                        Action::Sell(val) => Some(*val),
+                        _ => None,
+                    }),
+                ignore: actions
+                    .iter()
+                    .find(|(symbol, _)| symbol == &pos.symbol)
+                    .map(|(_, action)| matches!(action, Action::Ignore))
+                    .unwrap_or(false),
+            })
+            .collect();
+        let ignored_rows = find_ignored_rows(&rows);
+        let mut table = Table::new(rows);
+        table.with(Style::rounded());
+        table.modify(Columns::new(..), Alignment::right());
+        for r in ignored_rows {
+            table.modify(Rows::one(r), Color::rgb_fg(150, 150, 150));
+        }
+        println!("{table}");
+    }
     println!("[ To change allocation targets, edit the file {targets_path:?} ]");
     Ok(())
 }
