@@ -12,7 +12,7 @@ use tabled::{
 };
 
 use crate::{
-    portfolio::{AccountBalance, Portfolio},
+    portfolio::{AccountBalance, Portfolio, Position},
     target::AllocationTargets,
 };
 
@@ -111,6 +111,17 @@ fn main() -> anyhow::Result<()> {
 
         let actions = targets.adjust_allocations(&account)?;
 
+        // make sure that the account positions contain rows for the target allocations even if they don't yet exist in the account.
+        for (sym, _) in targets.targets() {
+            if !account.positions.iter().any(|e| e.symbol == sym) {
+                account.positions.push(Position {
+                    symbol: sym,
+                    current_value: 0.0,
+                    is_core: false,
+                    ignored: false,
+                })
+            }
+        }
         println!("Account {}", targets.account_number);
         let total: f32 = account.positions.iter().map(|pos| pos.current_value).sum();
         let rows: Vec<AllocationTableRow> = account
