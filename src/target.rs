@@ -13,7 +13,7 @@ struct PositionAdjustment {
     ignored: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AllocationTargets {
     pub account_number: String,
     pub core_position: CorePosition,
@@ -21,12 +21,12 @@ pub struct AllocationTargets {
 }
 
 impl AllocationTargets {
-    pub(crate) fn load_from_file(path: &PathBuf) -> anyhow::Result<Self> {
+    pub(crate) fn load_from_file(path: &PathBuf) -> anyhow::Result<Vec<Self>> {
         let targets_file =
             std::fs::File::open(path).with_context(|| format!("Failed to open file {path:?}"))?;
-        let builder: AllocationTargetsBuilder = serde_yaml::from_reader(targets_file)
+        let builders: Vec<AllocationTargetsBuilder> = serde_yaml::from_reader(targets_file)
             .with_context(|| format!("Failed to parse config file {path:?}"))?;
-        builder.build()
+        builders.into_iter().map(|b| b.build()).collect()
     }
 
     pub(crate) fn targets(&self) -> HashMap<String, Percent> {
@@ -170,7 +170,7 @@ impl AllocationTargetsBuilder {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct CorePosition {
     pub symbol: String,

@@ -9,21 +9,24 @@ sell in order to bring the portfolio into alignment with the target allocation.
 Create a `target.yml` file in your application config directory (or run
 the application without specifying a target file and it should give you the
 expected path to the file in its error message) that specifies the target fund
-allocations for your account. For example:
+allocations for your accounts. For example:
 
 ```yaml
-AccountNumber: "X12345678"
-CorePosition:
-  Symbol: "FZFXX"
-  Minimum: 2000
-Allocations:
-  "FXNAX": 25
-  "FSKAX": 45
-  "FTIHX": 30
+- AccountNumber: "X12345678"
+  CorePosition:
+    Symbol: "FZFXX"
+    Minimum: 2000
+  Allocations:
+    "FXNAX": 25
+    "FSKAX": 45
+    "FTIHX": 30
 ```
 
 You can specify a minimum dollar value that you want to leave as 'cash' in your
 core position, and then percentages for the other investments as percentages.
+
+The target file can contain multiple account definitions, but they should each
+have unique `AccountNumber`s.
 
 ## Basic Usage
 Then download your account data from the fidelity website. Go to the 'Positions'
