@@ -24,6 +24,11 @@ pub(crate) struct Cli {
         help = "Ignore the specified holdings when calculating target allocations"
     )]
     pub ignore: Vec<String>,
+    #[arg(
+        long,
+        help = "Amount to keeep in core position (overrides target allocation configuration)"
+    )]
+    pub core_minimum: Option<f32>,
     #[arg(short, long, value_enum, default_value_t = Provider::Fidelity, help = "Investment provider")]
     pub provider: Provider,
 }

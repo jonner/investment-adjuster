@@ -90,7 +90,12 @@ fn main() -> anyhow::Result<()> {
     else {
         anyhow::bail!("Failed to get target path");
     };
-    let targets = AllocationTargets::load_from_file(&targets_path)?;
+    let mut targets = AllocationTargets::load_from_file(&targets_path)?;
+    if let Some(keep) = opts.core_minimum {
+        for target in targets.iter_mut() {
+            target.core_position.minimum = keep;
+        }
+    }
     let portfolio = Portfolio::load_from_file(&opts.account_balance, opts.provider)?;
     let mut accounts_with_targets = HashMap::<String, (AccountBalance, AllocationTargets)>::new();
     for account in portfolio.accounts {
