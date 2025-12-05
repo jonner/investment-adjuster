@@ -1,4 +1,4 @@
-use std::{fmt::Debug, path::PathBuf};
+use std::{fmt::Debug, path::Path};
 
 use clap::ValueEnum;
 
@@ -6,7 +6,7 @@ use crate::Dollar;
 
 mod provider {
     pub(crate) mod fidelity {
-        use std::{collections::HashMap, path::PathBuf};
+        use std::{collections::HashMap, path::Path};
 
         use anyhow::{anyhow, bail};
         use tracing::{debug, warn};
@@ -23,10 +23,12 @@ mod provider {
             CurrentValue = 7,
         }
 
-        pub(crate) fn parse_accounts(
-            path: &PathBuf,
+        pub fn parse_accounts<P: AsRef<Path>>(
+            path: P,
         ) -> Result<HashMap<String, AccountBalance>, anyhow::Error> {
-            let mut csv_reader = csv::ReaderBuilder::new().flexible(true).from_path(path)?;
+            let mut csv_reader = csv::ReaderBuilder::new()
+                .flexible(true)
+                .from_path(path.as_ref())?;
             let headers = csv_reader.headers()?;
             if headers.get(Columns::AccountNumber as usize) != Some("AccountNumber")
                 && headers.get(Columns::AccountName as usize) != Some("Account Name")
@@ -120,7 +122,7 @@ pub enum Provider {
 }
 
 impl Portfolio {
-    pub fn load_from_file(path: &PathBuf, provider: Provider) -> anyhow::Result<Self> {
+    pub fn load_from_file<P: AsRef<Path>>(path: P, provider: Provider) -> anyhow::Result<Self> {
         match provider {
             Provider::Fidelity => {
                 let accounts = provider::fidelity::parse_accounts(path)?;

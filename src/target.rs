@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::Path};
 
 use anyhow::{Context, anyhow, bail};
 use serde::Deserialize;
@@ -21,11 +21,11 @@ pub struct AllocationTargets {
 }
 
 impl AllocationTargets {
-    pub(crate) fn load_from_file(path: &PathBuf) -> anyhow::Result<Vec<Self>> {
-        let targets_file =
-            std::fs::File::open(path).with_context(|| format!("Failed to open file {path:?}"))?;
+    pub(crate) fn load_from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<Self>> {
+        let targets_file = std::fs::File::open(path.as_ref())
+            .with_context(|| format!("Failed to open file {:?}", path.as_ref()))?;
         let builders: Vec<AllocationTargetsBuilder> = serde_yaml::from_reader(targets_file)
-            .with_context(|| format!("Failed to parse config file {path:?}"))?;
+            .with_context(|| format!("Failed to parse config file {:?}", path.as_ref()))?;
         builders.into_iter().map(|b| b.build()).collect()
     }
 
