@@ -21,7 +21,7 @@ pub struct AllocationTargets {
 }
 
 impl AllocationTargets {
-    pub(crate) fn load_from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<Self>> {
+    pub fn load_from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<Self>> {
         let targets_file = std::fs::File::open(path.as_ref())
             .with_context(|| format!("Failed to open file {:?}", path.as_ref()))?;
         let builders: Vec<AllocationTargetsBuilder> = serde_yaml::from_reader(targets_file)
@@ -29,11 +29,11 @@ impl AllocationTargets {
         builders.into_iter().map(|b| b.build()).collect()
     }
 
-    pub(crate) fn targets(&self) -> HashMap<String, Percent> {
+    pub fn targets(&self) -> HashMap<String, Percent> {
         self.targets.clone()
     }
 
-    pub(crate) fn adjust_allocations(
+    pub fn adjust_allocations(
         &self,
         balance: &AccountBalance,
     ) -> anyhow::Result<Vec<(String, Action)>> {

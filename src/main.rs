@@ -1,3 +1,4 @@
+use investment_adjuster::{Action, Dollar, Percent};
 use std::collections::HashMap;
 
 use anyhow::anyhow;
@@ -15,17 +16,6 @@ use crate::{
     portfolio::{AccountBalance, Portfolio, Position},
     target::AllocationTargets,
 };
-
-type Dollar = f32;
-type Percent = f32;
-
-#[derive(Debug)]
-pub enum Action {
-    Nothing,
-    Ignore,
-    Sell(Dollar),
-    Buy(Dollar),
-}
 
 mod cli;
 mod portfolio;
