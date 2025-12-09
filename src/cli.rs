@@ -17,7 +17,7 @@ pub(crate) struct Cli {
         value_name = "ACCOUNT_BALANCES",
         help = "A file containing account balances"
     )]
-    pub account_balance: PathBuf,
+    pub account_balances: PathBuf,
     #[arg(
         short,
         long,

@@ -86,7 +86,7 @@ fn main() -> anyhow::Result<()> {
             target.core_position.minimum = keep;
         }
     }
-    let portfolio = Portfolio::load_from_file(&opts.account_balance, opts.provider)?;
+    let portfolio = Portfolio::load_from_file(&opts.account_balances, opts.provider)?;
     let mut accounts_with_targets = HashMap::<String, (AccountBalance, AllocationTargets)>::new();
     for account in portfolio.accounts {
         if let Some(target) = targets
