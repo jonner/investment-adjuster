@@ -40,4 +40,6 @@ pub(crate) struct Cli {
         default_value_t = Provider::Fidelity,
         help = "Investment provider associated with account balances file")]
     pub provider: Provider,
+    #[arg(short, long, help = "Only show targets for the given account id")]
+    pub account: Option<String>,
 }

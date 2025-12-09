@@ -81,10 +81,16 @@ fn main() -> anyhow::Result<()> {
         anyhow::bail!("Failed to get target path");
     };
     let mut targets = AllocationTargets::load_from_file(&targets_path)?;
+    if let Some(acct) = opts.account {
+        targets.retain(|acc| acc.account_number == acct)
+    }
     if let Some(keep) = opts.core_minimum {
-        for target in targets.iter_mut() {
-            target.core_position.minimum = keep;
+        if targets.len() != 1 {
+            anyhow::bail!(
+                "--core-minimum can only be used with a single account. Try specifying --account."
+            );
         }
+        targets[0].core_position.minimum = keep;
     }
     let portfolio = Portfolio::load_from_file(&opts.account_balances, opts.provider)?;
     let mut accounts_with_targets = HashMap::<String, (AccountBalance, AllocationTargets)>::new();
