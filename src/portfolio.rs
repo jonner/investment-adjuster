@@ -64,13 +64,14 @@ mod provider {
                     .ok_or_else(|| anyhow!("Failed to get symbol"))?;
                 if symbol == "Pending activity" {
                     debug!(?acct, "Adding pending activity to core position");
-                    acct.positions
-                        .iter_mut()
-                        .find(|p| p.is_core)
-                        .map(|p| p.current_value += current_value)
-                        .ok_or_else(|| {
-                            anyhow!("Failed to find core position for pending activity")
-                        })?;
+                    if let Some(core) = acct.positions.iter_mut().find(|p| p.is_core) {
+                        core.current_value += current_value;
+                    } else {
+                        warn!(
+                            "Account '{}' has ${current_value} in pending activity but cannot find core position.",
+                            acct.account_number
+                        );
+                    }
                 } else {
                     let pos = Position {
                         symbol: symbol.trim_end_matches("**").to_string(),
