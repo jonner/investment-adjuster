@@ -49,11 +49,15 @@ mod provider {
                 let Some(account_number) = row.get(Columns::AccountNumber as usize) else {
                     bail!("failed to get account number for row");
                 };
+                let Some(account_name) = row.get(Columns::AccountName as usize) else {
+                    bail!("failed to get account name for row");
+                };
                 let acct = accounts
                     .entry(account_number.to_string())
                     .or_insert(AccountBalance {
                         account_number: account_number.to_string(),
-                        positions: Default::default(),
+                        account_name: account_name.to_string(),
+                        ..Default::default()
                     });
                 let symbol = row
                     .get(Columns::Symbol as usize)
@@ -88,9 +92,10 @@ mod provider {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct AccountBalance {
     pub account_number: String,
+    pub account_name: String,
     pub positions: Vec<Position>,
 }
 

@@ -123,7 +123,10 @@ fn main() -> anyhow::Result<()> {
                 })
             }
         }
-        println!("Account {}", targets.account_number);
+        println!(
+            "Account {}: {}",
+            account.account_number, account.account_name
+        );
         let total: f32 = account.positions.iter().map(|pos| pos.current_value).sum();
         let rows: Vec<AllocationTableRow> = account
             .positions
