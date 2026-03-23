@@ -98,9 +98,10 @@ fn edit_targets(targets_path: PathBuf) -> Result<(), anyhow::Error> {
     let mut command = std::process::Command::new(editor);
     command.arg(&targets_path);
     let exit_status = command.status()?;
-    Ok(if !exit_status.success() {
-        warn!("Failed to edit target file '{}'", targets_path.display())
-    })
+    if !exit_status.success() {
+        warn!("Failed to edit target file '{}'", targets_path.display());
+    }
+    Ok(())
 }
 
 fn calculate_adjustments(
@@ -133,7 +134,7 @@ fn calculate_adjustments(
             "Failed to find any accounts with allocation targets",
         ));
     }
-    Ok(for (_, (mut account, targets)) in accounts_with_targets {
+    for (_, (mut account, targets)) in accounts_with_targets {
         account.set_ignored(&args.ignore);
 
         let actions = targets.adjust_allocations(&account)?;
@@ -195,8 +196,8 @@ fn calculate_adjustments(
             table.modify(Rows::one(r), Color::rgb_fg(150, 150, 150));
         }
         println!("{table}");
-    })
-    // println!("[ To change allocation targets, edit the file {targets_path:?} ]");
+    }
+    Ok(())
 }
 
 fn find_ignored_rows(rows: &[AllocationTableRow]) -> Vec<usize> {
