@@ -1,5 +1,6 @@
 use investment_adjuster::{Action, Dollar, Percent};
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
+use tracing::warn;
 
 use anyhow::anyhow;
 use clap::Parser;
@@ -13,6 +14,7 @@ use tabled::{
 };
 
 use crate::{
+    cli::AdjustArgs,
     portfolio::{AccountBalance, Portfolio, Position},
     target::AllocationTargets,
 };
@@ -80,11 +82,35 @@ fn main() -> anyhow::Result<()> {
     else {
         anyhow::bail!("Failed to get target path");
     };
-    let mut targets = AllocationTargets::load_from_file(&targets_path)?;
-    if let Some(acct) = opts.account {
+    let targets = AllocationTargets::load_from_file(&targets_path)?;
+
+    match opts.command {
+        cli::Command::Edit => edit_targets(targets_path)?,
+        cli::Command::Adjust(args) => calculate_adjustments(args, targets)?,
+    }
+    Ok(())
+}
+
+fn edit_targets(targets_path: PathBuf) -> Result<(), anyhow::Error> {
+    let editor = std::env::var("VISUAL")
+        .or_else(|_| std::env::var("EDITOR"))
+        .unwrap_or_else(|_| "vi".to_string());
+    let mut command = std::process::Command::new(editor);
+    command.arg(&targets_path);
+    let exit_status = command.status()?;
+    Ok(if !exit_status.success() {
+        warn!("Failed to edit target file '{}'", targets_path.display())
+    })
+}
+
+fn calculate_adjustments(
+    args: AdjustArgs,
+    mut targets: Vec<AllocationTargets>,
+) -> Result<(), anyhow::Error> {
+    if let Some(acct) = args.account {
         targets.retain(|acc| acc.account_number == acct)
     }
-    if let Some(keep) = opts.core_minimum {
+    if let Some(keep) = args.core_minimum {
         if targets.len() != 1 {
             anyhow::bail!(
                 "--core-minimum can only be used with a single account. Try specifying --account."
@@ -92,7 +118,7 @@ fn main() -> anyhow::Result<()> {
         }
         targets[0].core_position.minimum = keep;
     }
-    let portfolio = Portfolio::load_from_file(&opts.account_balances, opts.provider)?;
+    let portfolio = Portfolio::load_from_file(&args.account_balances, args.provider)?;
     let mut accounts_with_targets = HashMap::<String, (AccountBalance, AllocationTargets)>::new();
     for account in portfolio.accounts {
         if let Some(target) = targets
@@ -107,8 +133,8 @@ fn main() -> anyhow::Result<()> {
             "Failed to find any accounts with allocation targets",
         ));
     }
-    for (_, (mut account, targets)) in accounts_with_targets {
-        account.set_ignored(&opts.ignore);
+    Ok(for (_, (mut account, targets)) in accounts_with_targets {
+        account.set_ignored(&args.ignore);
 
         let actions = targets.adjust_allocations(&account)?;
 
@@ -169,9 +195,8 @@ fn main() -> anyhow::Result<()> {
             table.modify(Rows::one(r), Color::rgb_fg(150, 150, 150));
         }
         println!("{table}");
-    }
-    println!("[ To change allocation targets, edit the file {targets_path:?} ]");
-    Ok(())
+    })
+    // println!("[ To change allocation targets, edit the file {targets_path:?} ]");
 }
 
 fn find_ignored_rows(rows: &[AllocationTableRow]) -> Vec<usize> {

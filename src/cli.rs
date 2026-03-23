@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::Parser;
+use clap::{Args, Parser, Subcommand};
 
 use crate::portfolio::Provider;
 
@@ -13,11 +13,17 @@ pub(crate) struct Cli {
         help = "Override default target allocation configuration file"
     )]
     pub target: Option<PathBuf>,
+    #[command(subcommand)]
+    pub command: Command,
+}
+
+#[derive(Args, Debug)]
+pub(crate) struct AdjustArgs {
     #[arg(
         value_name = "ACCOUNT_BALANCES",
         help = "A file containing account balances"
     )]
-    pub account_balances: PathBuf,
+    pub(crate) account_balances: PathBuf,
     #[arg(
         short,
         long,
@@ -25,21 +31,27 @@ pub(crate) struct Cli {
         value_name = "SYMBOL",
         help = "Ignore the specified holdings when calculating target allocations"
     )]
-    pub ignore: Vec<String>,
+    pub(crate) ignore: Vec<String>,
     #[arg(
         long,
         value_name = "VALUE",
         help = "Amount to keeep in core position (overrides target allocation configuration for all accounts)"
     )]
-    pub core_minimum: Option<f32>,
+    pub(crate) core_minimum: Option<f32>,
     #[arg(
-        short,
-        long,
-        value_enum,
-        value_name = "PROVIDER_ID",
-        default_value_t = Provider::Fidelity,
-        help = "Investment provider associated with account balances file")]
-    pub provider: Provider,
+    short,
+    long,
+    value_enum,
+    value_name = "PROVIDER_ID",
+    default_value_t = Provider::Fidelity,
+    help = "Investment provider associated with account balances file")]
+    pub(crate) provider: Provider,
     #[arg(short, long, help = "Only show targets for the given account id")]
-    pub account: Option<String>,
+    pub(crate) account: Option<String>,
+}
+
+#[derive(Subcommand, Debug)]
+pub(crate) enum Command {
+    Edit,
+    Adjust(AdjustArgs),
 }
