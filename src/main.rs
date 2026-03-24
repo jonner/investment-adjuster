@@ -1,5 +1,5 @@
 use investment_adjuster::{Action, Dollar, Percent};
-use std::{collections::HashMap, path::Path};
+use std::{collections::HashMap, io::Write, path::Path};
 use tracing::warn;
 
 use anyhow::anyhow;
@@ -86,7 +86,6 @@ fn main() -> anyhow::Result<()> {
     match opts.command {
         cli::Command::Edit => {
             edit_targets(&targets_path)?;
-            let _ = AllocationTargets::load_from_file(&targets_path)?;
         }
         cli::Command::Adjust(args) => {
             let targets = AllocationTargets::load_from_file(&targets_path)?;
@@ -101,11 +100,33 @@ fn edit_targets<P: AsRef<Path>>(targets_path: P) -> Result<(), anyhow::Error> {
     let editor = std::env::var("VISUAL")
         .or_else(|_| std::env::var("EDITOR"))
         .unwrap_or_else(|_| "vi".to_string());
+    let mut try_again = true;
     let mut command = std::process::Command::new(editor);
     command.arg(path);
-    let exit_status = command.status()?;
-    if !exit_status.success() {
-        warn!("Failed to edit target file '{}'", path.display());
+    while try_again {
+        let exit_status = command.status()?;
+        if !exit_status.success() {
+            warn!("Failed to edit target file '{}'", path.display());
+        } else {
+            match AllocationTargets::load_from_file(&targets_path) {
+                Ok(_) => {
+                    println!("Updated configuration file '{}'", path.display());
+                    try_again = false;
+                }
+                Err(e) => {
+                    println!("Failed to validate configuration file: {e}");
+                    print!("Would you like to try again? [y/N] ");
+                    std::io::stdout().flush().unwrap();
+                    let mut input = String::new();
+                    if std::io::stdin().read_line(&mut input).is_ok() {
+                        let line = input.trim().to_lowercase();
+                        if !(line == "y" || line == "yes") {
+                            try_again = false
+                        }
+                    }
+                }
+            }
+        }
     }
     Ok(())
 }
