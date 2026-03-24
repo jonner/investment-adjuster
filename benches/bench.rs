@@ -1,4 +1,4 @@
-use investment_adjuster::portfolio::Provider;
+use investment_adjuster::provider::Provider;
 
 fn main() {
     divan::main()

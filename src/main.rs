@@ -21,7 +21,7 @@ use crate::{
 
 mod account;
 mod cli;
-mod portfolio;
+mod provider;
 
 fn display_optional_dollar(val: &Option<Dollar>) -> String {
     if let Some(val) = val {

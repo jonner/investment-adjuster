@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
 
-use crate::portfolio::Provider;
+use crate::provider::Provider;
 
 #[derive(Parser, Debug)]
 pub(crate) struct Cli {
