@@ -12,7 +12,7 @@ pub(crate) struct Cli {
         value_name = "CONFIG_FILE",
         help = "Override default target allocation configuration file"
     )]
-    pub target: Option<PathBuf>,
+    pub config: Option<PathBuf>,
     #[command(subcommand)]
     pub command: Command,
 }

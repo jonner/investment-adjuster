@@ -75,8 +75,8 @@ fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
     let opts = cli::Cli::parse();
 
-    let Some(targets_path) =
-        opts.target
+    let Some(config_path) =
+        opts.config
             .or(ProjectDirs::from("org", "quotidian", "investment-adjuster")
                 .map(|pdirs| pdirs.config_dir().join("target.yml")))
     else {
@@ -85,18 +85,15 @@ fn main() -> anyhow::Result<()> {
 
     match opts.command {
         cli::Command::Edit => {
-            edit_targets(&targets_path)?;
+            edit_command(&config_path)?;
         }
-        cli::Command::Adjust(args) => {
-            let targets = AccountConfig::load_from_file(&targets_path)?;
-            calculate_adjustments(args, targets)?
-        }
+        cli::Command::Adjust(args) => adjust_command(args, config_path)?,
     }
     Ok(())
 }
 
-fn edit_targets<P: AsRef<Path>>(targets_path: P) -> Result<(), anyhow::Error> {
-    let path = targets_path.as_ref();
+fn edit_command<P: AsRef<Path>>(config_path: P) -> Result<(), anyhow::Error> {
+    let path = config_path.as_ref();
     let editor = std::env::var("VISUAL")
         .or_else(|_| std::env::var("EDITOR"))
         .unwrap_or_else(|_| "vi".to_string());
@@ -106,9 +103,9 @@ fn edit_targets<P: AsRef<Path>>(targets_path: P) -> Result<(), anyhow::Error> {
     while try_again {
         let exit_status = command.status()?;
         if !exit_status.success() {
-            warn!("Failed to edit target file '{}'", path.display());
+            warn!("Failed to edit configuration file '{}'", path.display());
         } else {
-            match AccountConfig::load_from_file(&targets_path) {
+            match AccountConfig::load_from_file(&config_path) {
                 Ok(_) => {
                     println!("Updated configuration file '{}'", path.display());
                     try_again = false;
@@ -131,10 +128,8 @@ fn edit_targets<P: AsRef<Path>>(targets_path: P) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-fn calculate_adjustments(
-    args: AdjustArgs,
-    mut account_configs: Vec<AccountConfig>,
-) -> Result<(), anyhow::Error> {
+fn adjust_command<P: AsRef<Path>>(args: AdjustArgs, config_path: P) -> Result<(), anyhow::Error> {
+    let mut account_configs = AccountConfig::load_from_file(config_path.as_ref())?;
     if let Some(acct) = args.account {
         account_configs.retain(|acc| acc.account_number == acct)
     }
@@ -149,11 +144,11 @@ fn calculate_adjustments(
     let portfolio = args.provider.load_portfolio(&args.account_balances)?;
     let mut accounts_with_config = HashMap::<String, (AccountBalance, AccountConfig)>::new();
     for account in portfolio.accounts {
-        if let Some(target) = account_configs
+        if let Some(cfg) = account_configs
             .iter()
             .find(|t| t.account_number == account.account_number)
         {
-            accounts_with_config.insert(account.account_number.clone(), (account, target.clone()));
+            accounts_with_config.insert(account.account_number.clone(), (account, cfg.clone()));
         }
     }
     if accounts_with_config.is_empty() {
