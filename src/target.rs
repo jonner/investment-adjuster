@@ -15,7 +15,7 @@ struct PositionAdjustment {
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
-pub struct AllocationTargets {
+pub struct AccountTargets {
     pub account_number: String,
     pub core_position: CorePosition,
     allocations: HashMap<String, Percent>,
@@ -23,7 +23,7 @@ pub struct AllocationTargets {
     pub ignored: Vec<String>,
 }
 
-impl AllocationTargets {
+impl AccountTargets {
     fn validate(&self) -> anyhow::Result<()> {
         let total_percent: f32 = self.allocations.values().sum();
         anyhow::ensure!(
@@ -37,7 +37,7 @@ impl AllocationTargets {
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<Self>> {
         let targets_file = std::fs::File::open(path.as_ref())
             .with_context(|| format!("Failed to open file {:?}", path.as_ref()))?;
-        let targets: Vec<AllocationTargets> = serde_yaml::from_reader(targets_file)?;
+        let targets: Vec<AccountTargets> = serde_yaml::from_reader(targets_file)?;
         targets
             .into_iter()
             .map(|t| {
@@ -47,7 +47,7 @@ impl AllocationTargets {
             .collect()
     }
 
-    pub fn targets(&self) -> HashMap<String, Percent> {
+    pub fn allocations(&self) -> HashMap<String, Percent> {
         self.allocations.clone()
     }
 

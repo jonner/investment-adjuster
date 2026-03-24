@@ -16,7 +16,7 @@ use tabled::{
 use crate::{
     cli::AdjustArgs,
     portfolio::{AccountBalance, Portfolio, Position},
-    target::AllocationTargets,
+    target::AccountTargets,
 };
 
 mod cli;
@@ -88,7 +88,7 @@ fn main() -> anyhow::Result<()> {
             edit_targets(&targets_path)?;
         }
         cli::Command::Adjust(args) => {
-            let targets = AllocationTargets::load_from_file(&targets_path)?;
+            let targets = AccountTargets::load_from_file(&targets_path)?;
             calculate_adjustments(args, targets)?
         }
     }
@@ -108,7 +108,7 @@ fn edit_targets<P: AsRef<Path>>(targets_path: P) -> Result<(), anyhow::Error> {
         if !exit_status.success() {
             warn!("Failed to edit target file '{}'", path.display());
         } else {
-            match AllocationTargets::load_from_file(&targets_path) {
+            match AccountTargets::load_from_file(&targets_path) {
                 Ok(_) => {
                     println!("Updated configuration file '{}'", path.display());
                     try_again = false;
@@ -133,7 +133,7 @@ fn edit_targets<P: AsRef<Path>>(targets_path: P) -> Result<(), anyhow::Error> {
 
 fn calculate_adjustments(
     args: AdjustArgs,
-    mut targets: Vec<AllocationTargets>,
+    mut targets: Vec<AccountTargets>,
 ) -> Result<(), anyhow::Error> {
     if let Some(acct) = args.account {
         targets.retain(|acc| acc.account_number == acct)
@@ -147,7 +147,7 @@ fn calculate_adjustments(
         targets[0].core_position.minimum = keep;
     }
     let portfolio = Portfolio::load_from_file(&args.account_balances, args.provider)?;
-    let mut accounts_with_targets = HashMap::<String, (AccountBalance, AllocationTargets)>::new();
+    let mut accounts_with_targets = HashMap::<String, (AccountBalance, AccountTargets)>::new();
     for account in portfolio.accounts {
         if let Some(target) = targets
             .iter()
@@ -168,7 +168,7 @@ fn calculate_adjustments(
         let actions = targets.adjust_allocations(&account)?;
 
         // make sure that the account positions contain rows for the target allocations even if they don't yet exist in the account.
-        for (sym, _) in targets.targets() {
+        for (sym, _) in targets.allocations() {
             if !account.positions.iter().any(|e| e.symbol == sym) {
                 account.positions.push(Position {
                     symbol: sym,
@@ -190,7 +190,7 @@ fn calculate_adjustments(
                 symbol: pos.symbol.clone(),
                 current_value: pos.current_value,
                 current_percentage: pos.current_value / total * 100.0,
-                target: targets.targets().get(&pos.symbol).copied(),
+                target: targets.allocations().get(&pos.symbol).copied(),
                 minimum: match pos.is_core && targets.core_position.minimum > 0.0 {
                     true => Some(targets.core_position.minimum),
                     false => None,
