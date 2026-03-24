@@ -2,7 +2,7 @@ use std::{fmt::Debug, path::Path};
 
 use clap::ValueEnum;
 
-use crate::Dollar;
+use crate::account::Portfolio;
 
 mod provider {
     pub(crate) mod fidelity {
@@ -13,7 +13,7 @@ mod provider {
 
         use crate::{
             Dollar,
-            portfolio::{AccountBalance, Position},
+            account::{AccountBalance, Position},
         };
 
         pub enum Columns {
@@ -90,36 +90,6 @@ mod provider {
             Ok(accounts)
         }
     }
-}
-
-#[derive(Debug, Default)]
-pub struct AccountBalance {
-    pub account_number: String,
-    pub account_name: String,
-    pub positions: Vec<Position>,
-}
-
-impl AccountBalance {
-    pub fn set_ignored(&mut self, ignored: &[String]) {
-        for pos in self.positions.iter_mut() {
-            if ignored.iter().any(|i| i.eq_ignore_ascii_case(&pos.symbol)) {
-                pos.ignored = true;
-            }
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct Position {
-    pub symbol: String,
-    pub current_value: Dollar,
-    pub is_core: bool,
-    pub ignored: bool,
-}
-
-#[derive(Debug)]
-pub struct Portfolio {
-    pub accounts: Vec<AccountBalance>,
 }
 
 #[derive(Clone, Debug, ValueEnum)]

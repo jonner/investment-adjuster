@@ -15,8 +15,8 @@ use tabled::{
 
 use crate::{
     account::AccountConfig,
+    account::{AccountBalance, Position},
     cli::AdjustArgs,
-    portfolio::{AccountBalance, Position},
 };
 
 mod account;
