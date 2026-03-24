@@ -158,7 +158,6 @@ fn adjust_command<P: AsRef<Path>>(args: AdjustArgs, config_path: P) -> Result<()
     }
     for (_, (mut account, mut config)) in accounts_with_config {
         config.ignored.extend(args.ignore.iter().cloned());
-        account.set_ignored(&config.ignored);
 
         let actions = config.adjust_allocations(&account)?;
 
@@ -169,7 +168,6 @@ fn adjust_command<P: AsRef<Path>>(args: AdjustArgs, config_path: P) -> Result<()
                     symbol: sym,
                     current_value: 0.0,
                     is_core: false,
-                    ignored: false,
                 })
             }
         }

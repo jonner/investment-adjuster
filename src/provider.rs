@@ -80,7 +80,6 @@ pub(crate) mod fidelity {
                     symbol: symbol.trim_end_matches("**").to_string(),
                     current_value,
                     is_core: symbol.ends_with("**"),
-                    ignored: false,
                 };
                 debug!(?acct, ?pos, "adding regular position");
                 acct.positions.push(pos);
