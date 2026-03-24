@@ -15,17 +15,17 @@ struct PositionAdjustment {
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
-pub struct AccountTargets {
+pub struct AccountConfig {
     pub account_number: String,
     pub core_position: CorePosition,
-    allocations: HashMap<String, Percent>,
+    targets: HashMap<String, Percent>,
     #[serde(default)]
     pub ignored: Vec<String>,
 }
 
-impl AccountTargets {
+impl AccountConfig {
     fn validate(&self) -> anyhow::Result<()> {
-        let total_percent: f32 = self.allocations.values().sum();
+        let total_percent: f32 = self.targets.values().sum();
         anyhow::ensure!(
             total_percent == 100.0,
             "Target positions for account {} do not add up to 100%",
@@ -37,7 +37,7 @@ impl AccountTargets {
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<Self>> {
         let targets_file = std::fs::File::open(path.as_ref())
             .with_context(|| format!("Failed to open file {:?}", path.as_ref()))?;
-        let targets: Vec<AccountTargets> = serde_yaml::from_reader(targets_file)?;
+        let targets: Vec<Self> = serde_yaml::from_reader(targets_file)?;
         targets
             .into_iter()
             .map(|t| {
@@ -47,8 +47,8 @@ impl AccountTargets {
             .collect()
     }
 
-    pub fn allocations(&self) -> HashMap<String, Percent> {
-        self.allocations.clone()
+    pub fn targets(&self) -> HashMap<String, Percent> {
+        self.targets.clone()
     }
 
     pub fn adjust_allocations(
@@ -75,11 +75,11 @@ impl AccountTargets {
                 self.core_position.symbol
             )
         }
-        if self.allocations.contains_key(&core.symbol) {
+        if self.targets.contains_key(&core.symbol) {
             bail!("Core position cannot be in target list");
         }
         let mut adjustments: HashMap<String, PositionAdjustment> = HashMap::new();
-        for (target_symbol, &target_percent) in self.allocations.iter() {
+        for (target_symbol, &target_percent) in self.targets.iter() {
             adjustments
                 .entry(target_symbol.clone())
                 .and_modify(|e| e.target = target_percent)

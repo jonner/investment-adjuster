@@ -16,7 +16,7 @@ use tabled::{
 use crate::{
     cli::AdjustArgs,
     portfolio::{AccountBalance, Position},
-    target::AccountTargets,
+    target::AccountConfig,
 };
 
 mod cli;
@@ -88,7 +88,7 @@ fn main() -> anyhow::Result<()> {
             edit_targets(&targets_path)?;
         }
         cli::Command::Adjust(args) => {
-            let targets = AccountTargets::load_from_file(&targets_path)?;
+            let targets = AccountConfig::load_from_file(&targets_path)?;
             calculate_adjustments(args, targets)?
         }
     }
@@ -108,7 +108,7 @@ fn edit_targets<P: AsRef<Path>>(targets_path: P) -> Result<(), anyhow::Error> {
         if !exit_status.success() {
             warn!("Failed to edit target file '{}'", path.display());
         } else {
-            match AccountTargets::load_from_file(&targets_path) {
+            match AccountConfig::load_from_file(&targets_path) {
                 Ok(_) => {
                     println!("Updated configuration file '{}'", path.display());
                     try_again = false;
@@ -133,42 +133,42 @@ fn edit_targets<P: AsRef<Path>>(targets_path: P) -> Result<(), anyhow::Error> {
 
 fn calculate_adjustments(
     args: AdjustArgs,
-    mut targets: Vec<AccountTargets>,
+    mut account_configs: Vec<AccountConfig>,
 ) -> Result<(), anyhow::Error> {
     if let Some(acct) = args.account {
-        targets.retain(|acc| acc.account_number == acct)
+        account_configs.retain(|acc| acc.account_number == acct)
     }
     if let Some(keep) = args.core_minimum {
-        if targets.len() != 1 {
+        if account_configs.len() != 1 {
             anyhow::bail!(
                 "--core-minimum can only be used with a single account. Try specifying --account."
             );
         }
-        targets[0].core_position.minimum = keep;
+        account_configs[0].core_position.minimum = keep;
     }
     let portfolio = args.provider.load_portfolio(&args.account_balances)?;
-    let mut accounts_with_targets = HashMap::<String, (AccountBalance, AccountTargets)>::new();
+    let mut accounts_with_config = HashMap::<String, (AccountBalance, AccountConfig)>::new();
     for account in portfolio.accounts {
-        if let Some(target) = targets
+        if let Some(target) = account_configs
             .iter()
             .find(|t| t.account_number == account.account_number)
         {
-            accounts_with_targets.insert(account.account_number.clone(), (account, target.clone()));
+            accounts_with_config.insert(account.account_number.clone(), (account, target.clone()));
         }
     }
-    if accounts_with_targets.is_empty() {
+    if accounts_with_config.is_empty() {
         return Err(anyhow!(
             "Failed to find any accounts with allocation targets",
         ));
     }
-    for (_, (mut account, mut targets)) in accounts_with_targets {
-        targets.ignored.extend(args.ignore.iter().cloned());
-        account.set_ignored(&targets.ignored);
+    for (_, (mut account, mut config)) in accounts_with_config {
+        config.ignored.extend(args.ignore.iter().cloned());
+        account.set_ignored(&config.ignored);
 
-        let actions = targets.adjust_allocations(&account)?;
+        let actions = config.adjust_allocations(&account)?;
 
         // make sure that the account positions contain rows for the target allocations even if they don't yet exist in the account.
-        for (sym, _) in targets.allocations() {
+        for (sym, _) in config.targets() {
             if !account.positions.iter().any(|e| e.symbol == sym) {
                 account.positions.push(Position {
                     symbol: sym,
@@ -190,9 +190,9 @@ fn calculate_adjustments(
                 symbol: pos.symbol.clone(),
                 current_value: pos.current_value,
                 current_percentage: pos.current_value / total * 100.0,
-                target: targets.allocations().get(&pos.symbol).copied(),
-                minimum: match pos.is_core && targets.core_position.minimum > 0.0 {
-                    true => Some(targets.core_position.minimum),
+                target: config.targets().get(&pos.symbol).copied(),
+                minimum: match pos.is_core && config.core_position.minimum > 0.0 {
+                    true => Some(config.core_position.minimum),
                     false => None,
                 },
                 buy: actions
