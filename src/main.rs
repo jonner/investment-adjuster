@@ -15,7 +15,7 @@ use tabled::{
 
 use crate::{
     cli::AdjustArgs,
-    portfolio::{AccountBalance, Portfolio, Position},
+    portfolio::{AccountBalance, Position},
     target::AccountTargets,
 };
 
@@ -146,7 +146,7 @@ fn calculate_adjustments(
         }
         targets[0].core_position.minimum = keep;
     }
-    let portfolio = Portfolio::load_from_file(&args.account_balances, args.provider)?;
+    let portfolio = args.provider.load_portfolio(&args.account_balances)?;
     let mut accounts_with_targets = HashMap::<String, (AccountBalance, AccountTargets)>::new();
     for account in portfolio.accounts {
         if let Some(target) = targets

@@ -127,12 +127,12 @@ pub enum Provider {
     Fidelity,
 }
 
-impl Portfolio {
-    pub fn load_from_file<P: AsRef<Path>>(path: P, provider: Provider) -> anyhow::Result<Self> {
-        match provider {
+impl Provider {
+    pub fn load_portfolio<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<Portfolio> {
+        match self {
             Provider::Fidelity => {
                 let accounts = provider::fidelity::parse_accounts(path)?;
-                Ok(Self {
+                Ok(Portfolio {
                     accounts: accounts.into_values().collect(),
                 })
             }

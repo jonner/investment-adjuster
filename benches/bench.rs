@@ -1,4 +1,4 @@
-use investment_adjuster::portfolio::{Portfolio, Provider};
+use investment_adjuster::portfolio::Provider;
 
 fn main() {
     divan::main()
@@ -6,5 +6,7 @@ fn main() {
 
 #[divan::bench]
 fn parse_fidelity() {
-    Portfolio::load_from_file("benches/fidelity.csv", Provider::Fidelity).expect("Failed to parse");
+    Provider::Fidelity
+        .load_portfolio("benches/fidelity.csv")
+        .expect("Failed to parse");
 }
