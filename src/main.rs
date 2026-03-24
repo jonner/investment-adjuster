@@ -1,5 +1,5 @@
 use investment_adjuster::{Action, Dollar, Percent};
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::Path};
 use tracing::warn;
 
 use anyhow::anyhow;
@@ -82,24 +82,30 @@ fn main() -> anyhow::Result<()> {
     else {
         anyhow::bail!("Failed to get target path");
     };
-    let targets = AllocationTargets::load_from_file(&targets_path)?;
 
     match opts.command {
-        cli::Command::Edit => edit_targets(targets_path)?,
-        cli::Command::Adjust(args) => calculate_adjustments(args, targets)?,
+        cli::Command::Edit => {
+            edit_targets(&targets_path)?;
+            let _ = AllocationTargets::load_from_file(&targets_path)?;
+        }
+        cli::Command::Adjust(args) => {
+            let targets = AllocationTargets::load_from_file(&targets_path)?;
+            calculate_adjustments(args, targets)?
+        }
     }
     Ok(())
 }
 
-fn edit_targets(targets_path: PathBuf) -> Result<(), anyhow::Error> {
+fn edit_targets<P: AsRef<Path>>(targets_path: P) -> Result<(), anyhow::Error> {
+    let path = targets_path.as_ref();
     let editor = std::env::var("VISUAL")
         .or_else(|_| std::env::var("EDITOR"))
         .unwrap_or_else(|_| "vi".to_string());
     let mut command = std::process::Command::new(editor);
-    command.arg(&targets_path);
+    command.arg(path);
     let exit_status = command.status()?;
     if !exit_status.success() {
-        warn!("Failed to edit target file '{}'", targets_path.display());
+        warn!("Failed to edit target file '{}'", path.display());
     }
     Ok(())
 }
@@ -134,8 +140,9 @@ fn calculate_adjustments(
             "Failed to find any accounts with allocation targets",
         ));
     }
-    for (_, (mut account, targets)) in accounts_with_targets {
-        account.set_ignored(&args.ignore);
+    for (_, (mut account, mut targets)) in accounts_with_targets {
+        targets.ignored.extend(args.ignore.iter().cloned());
+        account.set_ignored(&targets.ignored);
 
         let actions = targets.adjust_allocations(&account)?;
 

@@ -18,6 +18,7 @@ pub struct AllocationTargets {
     pub account_number: String,
     pub core_position: CorePosition,
     targets: HashMap<String, Percent>,
+    pub ignored: Vec<String>,
 }
 
 impl AllocationTargets {
@@ -139,6 +140,8 @@ impl AllocationTargets {
 struct AllocationTargetsBuilder {
     pub account_number: String,
     pub core_position: CorePosition,
+    #[serde(default)]
+    pub ignored: Vec<String>,
     pub allocations: HashMap<String, Percent>,
 }
 
@@ -151,6 +154,7 @@ impl TryInto<AllocationTargets> for AllocationTargetsBuilder {
             account_number: self.account_number,
             core_position: self.core_position,
             targets: self.allocations,
+            ignored: self.ignored,
         })
     }
 }
