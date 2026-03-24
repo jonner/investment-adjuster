@@ -14,14 +14,14 @@ use tabled::{
 };
 
 use crate::{
+    account::AccountConfig,
     cli::AdjustArgs,
     portfolio::{AccountBalance, Position},
-    target::AccountConfig,
 };
 
+mod account;
 mod cli;
 mod portfolio;
-mod target;
 
 fn display_optional_dollar(val: &Option<Dollar>) -> String {
     if let Some(val) = val {
