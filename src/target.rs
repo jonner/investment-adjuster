@@ -13,25 +13,42 @@ struct PositionAdjustment {
     ignored: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Deserialize, Clone)]
+#[serde(rename_all = "PascalCase")]
 pub struct AllocationTargets {
     pub account_number: String,
     pub core_position: CorePosition,
-    targets: HashMap<String, Percent>,
+    allocations: HashMap<String, Percent>,
+    #[serde(default)]
     pub ignored: Vec<String>,
 }
 
 impl AllocationTargets {
+    fn validate(&self) -> anyhow::Result<()> {
+        let total_percent: f32 = self.allocations.values().sum();
+        anyhow::ensure!(
+            total_percent == 100.0,
+            "Target positions for account {} do not add up to 100%",
+            self.account_number
+        );
+        Ok(())
+    }
+
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<Self>> {
         let targets_file = std::fs::File::open(path.as_ref())
             .with_context(|| format!("Failed to open file {:?}", path.as_ref()))?;
-        let builders: Vec<AllocationTargetsBuilder> = serde_yaml::from_reader(targets_file)
-            .with_context(|| format!("Failed to parse config file {:?}", path.as_ref()))?;
-        builders.into_iter().map(|b| b.build()).collect()
+        let targets: Vec<AllocationTargets> = serde_yaml::from_reader(targets_file)?;
+        targets
+            .into_iter()
+            .map(|t| {
+                t.validate()?;
+                Ok(t)
+            })
+            .collect()
     }
 
     pub fn targets(&self) -> HashMap<String, Percent> {
-        self.targets.clone()
+        self.allocations.clone()
     }
 
     pub fn adjust_allocations(
@@ -58,11 +75,11 @@ impl AllocationTargets {
                 self.core_position.symbol
             )
         }
-        if self.targets.contains_key(&core.symbol) {
+        if self.allocations.contains_key(&core.symbol) {
             bail!("Core position cannot be in target list");
         }
         let mut adjustments: HashMap<String, PositionAdjustment> = HashMap::new();
-        for (target_symbol, &target_percent) in self.targets.iter() {
+        for (target_symbol, &target_percent) in self.allocations.iter() {
             adjustments
                 .entry(target_symbol.clone())
                 .and_modify(|e| e.target = target_percent)
@@ -132,45 +149,6 @@ impl AllocationTargets {
             .collect();
         debug!(?actions, "processed data");
         Ok(actions)
-    }
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-struct AllocationTargetsBuilder {
-    pub account_number: String,
-    pub core_position: CorePosition,
-    #[serde(default)]
-    pub ignored: Vec<String>,
-    pub allocations: HashMap<String, Percent>,
-}
-
-impl TryInto<AllocationTargets> for AllocationTargetsBuilder {
-    type Error = anyhow::Error;
-
-    fn try_into(self) -> Result<AllocationTargets, Self::Error> {
-        self.validate()?;
-        Ok(AllocationTargets {
-            account_number: self.account_number,
-            core_position: self.core_position,
-            targets: self.allocations,
-            ignored: self.ignored,
-        })
-    }
-}
-
-impl AllocationTargetsBuilder {
-    fn validate(&self) -> anyhow::Result<()> {
-        let total_percent: f32 = self.allocations.values().sum();
-        anyhow::ensure!(
-            total_percent == 100.0,
-            "Target positions do not add up to 100%"
-        );
-        Ok(())
-    }
-
-    pub fn build(self) -> anyhow::Result<AllocationTargets> {
-        self.try_into()
     }
 }
 
