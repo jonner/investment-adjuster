@@ -2,7 +2,6 @@ use std::{collections::HashMap, path::Path};
 
 use anyhow::{Context, anyhow, bail};
 use serde::Deserialize;
-use tracing::debug;
 
 use crate::{Action, Dollar, Percent};
 
@@ -13,7 +12,7 @@ pub struct AccountBalance {
     pub positions: Vec<Position>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default, Clone)]
 pub struct Position {
     pub symbol: String,
     pub current_value: Dollar,
@@ -25,11 +24,12 @@ pub struct Portfolio {
     pub accounts: Vec<AccountBalance>,
 }
 
-#[derive(Debug)]
-struct PositionAdjustment {
-    current_value: Dollar,
-    target: Percent,
-    ignored: bool,
+#[derive(Debug, Default)]
+pub struct PositionAdjustment {
+    pub position: Position,
+    pub target: Percent,
+    pub ignored: bool,
+    pub action: Action,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -73,7 +73,7 @@ impl AccountConfig {
     pub fn adjust_allocations(
         &self,
         balance: &AccountBalance,
-    ) -> anyhow::Result<Vec<(String, Action)>> {
+    ) -> anyhow::Result<Vec<PositionAdjustment>> {
         let core = balance
             .positions
             .iter()
@@ -103,19 +103,22 @@ impl AccountConfig {
                 .entry(target_symbol.clone())
                 .and_modify(|e| e.target = target_percent)
                 .or_insert(PositionAdjustment {
-                    current_value: 0.0,
                     target: target_percent,
-                    ignored: false,
+                    position: Position {
+                        symbol: target_symbol.clone(),
+                        ..Default::default()
+                    },
+                    ..Default::default()
                 });
         }
         for pos in balance.positions.iter() {
             adjustments
                 .entry(pos.symbol.to_owned())
-                .and_modify(|e| e.current_value = pos.current_value)
+                .and_modify(|e| e.position.current_value = pos.current_value)
                 .or_insert(PositionAdjustment {
-                    current_value: pos.current_value,
-                    target: 0.0,
+                    position: pos.clone(),
                     ignored: self.ignored.contains(&pos.symbol),
+                    ..Default::default()
                 });
         }
 
@@ -131,7 +134,7 @@ impl AccountConfig {
                 if adj.ignored {
                     None
                 } else {
-                    Some(adj.current_value)
+                    Some(adj.position.current_value)
                 }
             })
             .sum::<Dollar>();
@@ -142,32 +145,45 @@ impl AccountConfig {
             );
         }
 
-        let actions: Vec<(String, Action)> = adjustments
-            .into_iter()
-            .map(|(symbol, adj)| {
+        let mut adjustments: Vec<_> = adjustments
+            .into_values()
+            .map(|mut adj| {
                 let action = if adj.ignored {
                     Action::Ignore
-                } else if symbol == self.core_position.symbol {
-                    if adj.current_value > self.core_position.minimum {
-                        Action::Sell(adj.current_value - self.core_position.minimum)
-                    } else if adj.current_value < self.core_position.minimum {
-                        Action::Buy(self.core_position.minimum - adj.current_value)
+                } else if adj.position.symbol == self.core_position.symbol {
+                    if adj.position.current_value > self.core_position.minimum {
+                        Action::Sell(adj.position.current_value - self.core_position.minimum)
+                    } else if adj.position.current_value < self.core_position.minimum {
+                        Action::Buy(self.core_position.minimum - adj.position.current_value)
                     } else {
                         Action::Nothing
                     }
                 } else {
                     let desired_val = to_distribute * (adj.target / 100.0);
-                    match desired_val - adj.current_value {
+                    match desired_val - adj.position.current_value {
                         val if val > 0.0 => Action::Buy(val.abs()),
                         val if val < 0.0 => Action::Sell(val.abs()),
                         _ => Action::Nothing,
                     }
                 };
-                (symbol, action)
+                adj.action = action;
+                adj
             })
             .collect();
-        debug!(?actions, "processed data");
-        Ok(actions)
+        // sort core position first, then by current value, then by symbol name
+        adjustments.sort_by(|a, b| match b.position.is_core.cmp(&a.position.is_core) {
+            std::cmp::Ordering::Equal => match b
+                .position
+                .current_value
+                .partial_cmp(&a.position.current_value)
+                .unwrap_or(std::cmp::Ordering::Equal)
+            {
+                std::cmp::Ordering::Equal => a.position.symbol.cmp(&b.position.symbol),
+                res => res,
+            },
+            res => res,
+        });
+        Ok(adjustments)
     }
 }
 

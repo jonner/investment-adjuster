@@ -13,11 +13,7 @@ use tabled::{
     },
 };
 
-use crate::{
-    account::AccountConfig,
-    account::{AccountBalance, Position},
-    cli::AdjustArgs,
-};
+use crate::{account::AccountBalance, account::AccountConfig, cli::AdjustArgs};
 
 mod account;
 mod cli;
@@ -156,57 +152,39 @@ fn adjust_command<P: AsRef<Path>>(args: AdjustArgs, config_path: P) -> Result<()
             "Failed to find any accounts with allocation targets",
         ));
     }
-    for (_, (mut account, mut config)) in accounts_with_config {
+    for (_, (account, mut config)) in accounts_with_config {
         config.ignored.extend(args.ignore.iter().cloned());
 
-        let actions = config.adjust_allocations(&account)?;
+        let adjustments = config.adjust_allocations(&account)?;
 
-        // make sure that the account positions contain rows for the target allocations even if they don't yet exist in the account.
-        for (sym, _) in config.targets() {
-            if !account.positions.iter().any(|e| e.symbol == sym) {
-                account.positions.push(Position {
-                    symbol: sym,
-                    current_value: 0.0,
-                    is_core: false,
-                })
-            }
-        }
         println!(
             "Account {}: {}",
             account.account_number, account.account_name
         );
-        let total: f32 = account.positions.iter().map(|pos| pos.current_value).sum();
-        let rows: Vec<AllocationTableRow> = account
-            .positions
-            .into_iter()
-            .map(|pos| AllocationTableRow {
-                symbol: pos.symbol.clone(),
-                current_value: pos.current_value,
-                current_percentage: pos.current_value / total * 100.0,
-                target: config.targets().get(&pos.symbol).copied(),
-                minimum: match pos.is_core && config.core_position.minimum > 0.0 {
+        let total: f32 = adjustments
+            .iter()
+            .map(|adj| adj.position.current_value)
+            .sum();
+        let rows: Vec<AllocationTableRow> = adjustments
+            .iter()
+            .map(|adj| AllocationTableRow {
+                symbol: adj.position.symbol.clone(),
+                current_value: adj.position.current_value,
+                current_percentage: adj.position.current_value / total * 100.0,
+                target: config.targets().get(&adj.position.symbol).copied(),
+                minimum: match adj.position.is_core && config.core_position.minimum > 0.0 {
                     true => Some(config.core_position.minimum),
                     false => None,
                 },
-                buy: actions
-                    .iter()
-                    .find(|(symbol, _)| symbol == &pos.symbol)
-                    .and_then(|(_, action)| match action {
-                        Action::Buy(val) => Some(*val),
-                        _ => None,
-                    }),
-                sell: actions
-                    .iter()
-                    .find(|(symbol, _)| symbol == &pos.symbol)
-                    .and_then(|(_, action)| match action {
-                        Action::Sell(val) => Some(*val),
-                        _ => None,
-                    }),
-                ignore: actions
-                    .iter()
-                    .find(|(symbol, _)| symbol == &pos.symbol)
-                    .map(|(_, action)| matches!(action, Action::Ignore))
-                    .unwrap_or(false),
+                buy: match adj.action {
+                    Action::Buy(val) => Some(val),
+                    _ => None,
+                },
+                sell: match adj.action {
+                    Action::Sell(val) => Some(val),
+                    _ => None,
+                },
+                ignore: matches!(adj.action, Action::Ignore),
             })
             .collect();
         let ignored_rows = find_ignored_rows(&rows);
