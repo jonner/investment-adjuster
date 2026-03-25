@@ -188,3 +188,185 @@ impl Config {
         Ok(adjustments)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Action;
+
+    #[test]
+    fn test_config_validate() {
+        let mut targets = HashMap::new();
+        targets.insert("A".to_string(), 50.0);
+        targets.insert("B".to_string(), 50.0);
+        let config = Config {
+            account_number: "123".to_string(),
+            core_position: CoreConfig {
+                symbol: "CORE".to_string(),
+                minimum: 100.0,
+            },
+            targets,
+            ignored: vec![],
+        };
+        assert!(config.validate().is_ok());
+
+        let mut targets = HashMap::new();
+        targets.insert("A".to_string(), 50.0);
+        targets.insert("B".to_string(), 40.0);
+        let config = Config {
+            account_number: "123".to_string(),
+            core_position: CoreConfig {
+                symbol: "CORE".to_string(),
+                minimum: 100.0,
+            },
+            targets,
+            ignored: vec![],
+        };
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_adjust_allocations_basic() {
+        let mut targets = HashMap::new();
+        targets.insert("A".to_string(), 50.0);
+        targets.insert("B".to_string(), 50.0);
+        let config = Config {
+            account_number: "123".to_string(),
+            core_position: CoreConfig {
+                symbol: "CORE".to_string(),
+                minimum: 1000.0,
+            },
+            targets,
+            ignored: vec![],
+        };
+
+        let balance = Balance {
+            account_number: "123".to_string(),
+            account_name: "Test Account".to_string(),
+            positions: vec![
+                Position {
+                    symbol: "CORE".to_string(),
+                    current_value: 5000.0,
+                    is_core: true,
+                },
+                Position {
+                    symbol: "A".to_string(),
+                    current_value: 1000.0,
+                    is_core: false,
+                },
+                Position {
+                    symbol: "B".to_string(),
+                    current_value: 1000.0,
+                    is_core: false,
+                },
+            ],
+        };
+
+        let adjustments = config.adjust_allocations(&balance).unwrap();
+        assert_eq!(adjustments.len(), 3);
+
+        let core_adj = adjustments
+            .iter()
+            .find(|a| a.position.symbol == "CORE")
+            .unwrap();
+        if let Action::Sell(amount) = core_adj.action {
+            assert_eq!(amount, 4000.0);
+        } else {
+            panic!(
+                "CORE action should be Sell(4000.0), but was {:?}",
+                core_adj.action
+            );
+        }
+
+        let a_adj = adjustments
+            .iter()
+            .find(|a| a.position.symbol == "A")
+            .unwrap();
+        if let Action::Buy(amount) = a_adj.action {
+            assert_eq!(amount, 2000.0);
+        } else {
+            panic!("A action should be Buy(2000.0), but was {:?}", a_adj.action);
+        }
+
+        let b_adj = adjustments
+            .iter()
+            .find(|a| a.position.symbol == "B")
+            .unwrap();
+        if let Action::Buy(amount) = b_adj.action {
+            assert_eq!(amount, 2000.0);
+        } else {
+            panic!("B action should be Buy(2000.0), but was {:?}", b_adj.action);
+        }
+    }
+
+    #[test]
+    fn test_adjust_allocations_with_ignored() {
+        let mut targets = HashMap::new();
+        targets.insert("A".to_string(), 100.0);
+        let config = Config {
+            account_number: "123".to_string(),
+            core_position: CoreConfig {
+                symbol: "CORE".to_string(),
+                minimum: 1000.0,
+            },
+            targets,
+            ignored: vec!["IGNORED".to_string()],
+        };
+
+        let balance = Balance {
+            account_number: "123".to_string(),
+            account_name: "Test Account".to_string(),
+            positions: vec![
+                Position {
+                    symbol: "CORE".to_string(),
+                    current_value: 5000.0,
+                    is_core: true,
+                },
+                Position {
+                    symbol: "A".to_string(),
+                    current_value: 1000.0,
+                    is_core: false,
+                },
+                Position {
+                    symbol: "IGNORED".to_string(),
+                    current_value: 2000.0,
+                    is_core: false,
+                },
+            ],
+        };
+
+        let adjustments = config.adjust_allocations(&balance).unwrap();
+
+        assert_eq!(adjustments.len(), 3);
+
+        let ignored_adj = adjustments
+            .iter()
+            .find(|a| a.position.symbol == "IGNORED")
+            .unwrap();
+        matches!(ignored_adj.action, Action::Ignore);
+
+        // the total value to consider for distribution is 6000 (5000 core +
+        // 1000 A), since IGNORED is ignored
+        let a_adj = adjustments
+            .iter()
+            .find(|a| a.position.symbol == "A")
+            .unwrap();
+        if let Action::Buy(amount) = a_adj.action {
+            assert_eq!(amount, 4000.0);
+        } else {
+            panic!("A action should be Buy(4000.0), but was {:?}", a_adj.action);
+        }
+        let core_adj = adjustments
+            .iter()
+            .find(|a| a.position.symbol == "CORE")
+            .unwrap();
+        if let Action::Sell(amount) = core_adj.action {
+            assert_eq!(amount, 4000.0);
+        } else {
+            panic!(
+                "CORE action should be Sell(4000.0), but was {:?}",
+                core_adj.action
+            );
+        }
+    }
+}
