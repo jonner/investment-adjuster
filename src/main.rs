@@ -171,7 +171,7 @@ fn adjust_command<P: AsRef<Path>>(args: AdjustArgs, config_path: P) -> Result<()
                 symbol: adj.position.symbol.clone(),
                 current_value: adj.position.current_value,
                 current_percentage: adj.position.current_value / total * 100.0,
-                target: config.targets().get(&adj.position.symbol).copied(),
+                target: config.targets.get(&adj.position.symbol).copied(),
                 minimum: match adj.position.is_core && config.core_position.minimum > 0.0 {
                     true => Some(config.core_position.minimum),
                     false => None,

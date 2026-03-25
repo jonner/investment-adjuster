@@ -74,10 +74,6 @@ impl Config {
             .collect()
     }
 
-    pub fn targets(&self) -> HashMap<String, Percent> {
-        self.targets.clone()
-    }
-
     pub fn adjust_allocations(&self, balance: &Balance) -> anyhow::Result<Vec<PositionAdjustment>> {
         let core = balance
             .positions
