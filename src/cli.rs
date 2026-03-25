@@ -29,7 +29,7 @@ pub(crate) struct AdjustArgs {
         long,
         value_delimiter = ',',
         value_name = "SYMBOL",
-        help = "Ignore the specified holdings when calculating target allocations"
+        help = "Ignore the specified space-separated holdings when calculating allocation adjustments"
     )]
     pub(crate) ignore: Vec<String>,
     #[arg(
@@ -39,12 +39,13 @@ pub(crate) struct AdjustArgs {
     )]
     pub(crate) core_minimum: Option<f32>,
     #[arg(
-    short,
-    long,
-    value_enum,
-    value_name = "PROVIDER_ID",
-    default_value_t = Provider::Fidelity,
-    help = "Investment provider associated with account balances file")]
+        short,
+        long,
+        value_enum,
+        value_name = "PROVIDER_ID",
+        default_value_t = Provider::Fidelity,
+        help = "Investment provider associated with account balances file",
+    )]
     pub(crate) provider: Provider,
     #[arg(short, long, help = "Only show targets for the given account id")]
     pub(crate) account: Option<String>,
@@ -52,6 +53,8 @@ pub(crate) struct AdjustArgs {
 
 #[derive(Subcommand, Debug)]
 pub(crate) enum Command {
-    Edit,
+    #[command(about = "Calculate adjustments needed to acheive configured target allocations")]
     Adjust(AdjustArgs),
+    #[command(about = "Edit the target allocation configuration file")]
+    Edit,
 }
