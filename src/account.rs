@@ -169,11 +169,12 @@ impl Config {
             .collect();
         // sort core position first, then by current value, then by symbol name
         adjustments.sort_by(|a, b| match b.position.is_core.cmp(&a.position.is_core) {
-            std::cmp::Ordering::Equal => match b
+            std::cmp::Ordering::Equal => match a
                 .position
                 .current_value
-                .partial_cmp(&a.position.current_value)
+                .partial_cmp(&b.position.current_value)
                 .unwrap_or(std::cmp::Ordering::Equal)
+                .reverse()
             {
                 std::cmp::Ordering::Equal => a.position.symbol.cmp(&b.position.symbol),
                 res => res,
