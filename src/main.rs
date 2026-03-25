@@ -194,7 +194,7 @@ fn adjust_command<P: AsRef<Path>>(args: AdjustArgs, config_path: P) -> Result<()
         for r in ignored_rows {
             table.modify(Rows::one(r), Color::rgb_fg(150, 150, 150));
         }
-        println!("{table}");
+        println!("{table}\n");
     }
     Ok(())
 }
