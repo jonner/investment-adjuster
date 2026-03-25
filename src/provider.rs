@@ -22,9 +22,7 @@ pub(crate) mod fidelity {
         CurrentValue = 7,
     }
 
-    pub fn parse_accounts<P: AsRef<Path>>(
-        path: P,
-    ) -> Result<HashMap<String, Balance>, anyhow::Error> {
+    pub fn parse_accounts<P: AsRef<Path>>(path: P) -> Result<Vec<Balance>, anyhow::Error> {
         let mut csv_reader = csv::ReaderBuilder::new()
             .flexible(true)
             .from_path(path.as_ref())?;
@@ -85,7 +83,7 @@ pub(crate) mod fidelity {
                 acct.positions.push(pos);
             }
         }
-        Ok(accounts)
+        Ok(accounts.into_values().collect())
     }
 }
 
@@ -99,9 +97,7 @@ impl Provider {
         match self {
             Provider::Fidelity => {
                 let accounts = fidelity::parse_accounts(path)?;
-                Ok(Portfolio {
-                    accounts: accounts.into_values().collect(),
-                })
+                Ok(Portfolio { accounts })
             }
         }
     }
