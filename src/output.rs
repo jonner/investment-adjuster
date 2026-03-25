@@ -86,23 +86,14 @@ pub fn format_adjustments(adjustments: Vec<PositionAdjustment>) -> Table {
             ignore: matches!(adj.action, Action::Ignore),
         })
         .collect();
-    let ignored_rows = find_ignored_rows(&rows);
-    let mut table = Table::new(rows);
+    let mut table = Table::new(rows.iter());
     table.with(Style::rounded());
     table.modify(Columns::new(..), Alignment::right());
-    for r in ignored_rows {
-        table.modify(Rows::one(r), Color::rgb_fg(150, 150, 150));
-    }
-    table
-}
-
-fn find_ignored_rows(rows: &[AllocationTableRow]) -> Vec<usize> {
-    let mut ignored_rows = Vec::new();
     for (i, row) in rows.iter().enumerate() {
         if row.ignore {
             // header row is technically the first row
-            ignored_rows.push(i + 1)
+            table.modify(Rows::one(i + 1), Color::rgb_fg(150, 150, 150));
         }
     }
-    ignored_rows
+    table
 }
