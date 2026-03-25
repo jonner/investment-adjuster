@@ -57,12 +57,12 @@ struct AllocationTableRow {
     current_percentage: Percent,
     #[tabled(rename = "Target")]
     target: Option<Percent>,
-    #[tabled(rename = "Retain")]
-    minimum: Option<Dollar>,
     #[tabled(rename = "Sell")]
     sell: Option<Dollar>,
     #[tabled(rename = "Buy")]
     buy: Option<Dollar>,
+    #[tabled(rename = "Result")]
+    result: Option<Dollar>,
     #[tabled(skip)]
     ignore: bool,
 }
@@ -172,10 +172,6 @@ fn adjust_command<P: AsRef<Path>>(args: AdjustArgs, config_path: P) -> Result<()
                 current_value: adj.position.current_value,
                 current_percentage: adj.position.current_value / total * 100.0,
                 target: Some(adj.target),
-                minimum: match adj.position.is_core && config.core_position.minimum > 0.0 {
-                    true => Some(config.core_position.minimum),
-                    false => None,
-                },
                 buy: match adj.action {
                     Action::Buy(val) => Some(val),
                     _ => None,
@@ -184,6 +180,14 @@ fn adjust_command<P: AsRef<Path>>(args: AdjustArgs, config_path: P) -> Result<()
                     Action::Sell(val) => Some(val),
                     _ => None,
                 },
+                result: Some(
+                    adj.position.current_value
+                        + match adj.action {
+                            Action::Sell(val) => -val,
+                            Action::Buy(val) => val,
+                            _ => 0.0,
+                        },
+                ),
                 ignore: matches!(adj.action, Action::Ignore),
             })
             .collect();
