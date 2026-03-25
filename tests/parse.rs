@@ -16,10 +16,10 @@ fn parse_fidelity() {
     assert_eq!(individual.holdings.len(), 2);
     assert_eq!(individual.holdings[0].symbol, "AAPL");
     assert_eq!(individual.holdings[0].current_value, 1754.30);
-    assert!(!individual.holdings[0].is_core);
+    assert!(!individual.holdings[0].is_cash);
     assert_eq!(individual.holdings[1].symbol, "SPAXX");
     assert_eq!(individual.holdings[1].current_value, 500.00);
-    assert!(individual.holdings[1].is_core);
+    assert!(individual.holdings[1].is_cash);
 }
 
 #[test]
@@ -38,5 +38,5 @@ fn parse_vanguard() {
     assert_eq!(acct1.holdings.len(), 3);
     let vmfxx = acct1.holdings.iter().find(|p| p.symbol == "VMFXX").unwrap();
     assert_eq!(vmfxx.current_value, 1000.00);
-    assert!(vmfxx.is_core);
+    assert!(vmfxx.is_cash);
 }

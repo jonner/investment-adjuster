@@ -64,7 +64,7 @@ impl Provider for ProviderImpl {
                 symbol: symbol.trim_end_matches("**").to_string(),
                 current_value: total_value,
                 // FIXME: is this reasonable?
-                is_core: symbol.eq_ignore_ascii_case("VMFXX"),
+                is_cash: symbol.eq_ignore_ascii_case("VMFXX"),
             };
             debug!(?acct, ?holding, "adding regular position");
             acct.holdings.push(holding);

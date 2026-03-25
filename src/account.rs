@@ -16,7 +16,7 @@ pub struct Balance {
 pub struct Holding {
     pub symbol: String,
     pub current_value: Dollar,
-    pub is_core: bool,
+    pub is_cash: bool,
 }
 
 #[derive(Debug)]
@@ -34,7 +34,7 @@ pub struct PositionAdjustment {
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
-pub struct CoreConfig {
+pub struct CashConfig {
     pub symbol: String,
     /// Minimum amount to retain in the core position in dollars
     pub minimum: Dollar,
@@ -44,7 +44,7 @@ pub struct CoreConfig {
 #[serde(rename_all = "PascalCase")]
 pub struct Config {
     pub account_number: String,
-    pub core_position: CoreConfig,
+    pub cash_sweep: CashConfig,
     pub targets: HashMap<String, Percent>,
     #[serde(default)]
     pub ignored: Vec<String>,
@@ -79,20 +79,20 @@ impl Config {
             .holdings
             .iter()
             .find(|&pos| {
-                pos.symbol == self.core_position.symbol
+                pos.symbol == self.cash_sweep.symbol
                     && balance.account_number == self.account_number
             })
             .ok_or_else(|| {
                 anyhow!(
                     "Failed to find an entry for core position {} for account {}",
-                    self.core_position.symbol,
+                    self.cash_sweep.symbol,
                     self.account_number
                 )
             })?;
-        if !core.is_core {
+        if !core.is_cash {
             bail!(
                 "Found position {} but it was not marked as the core position in the provided data file",
-                self.core_position.symbol
+                self.cash_sweep.symbol
             )
         }
         if self.targets.contains_key(&core.symbol) {
@@ -139,7 +139,7 @@ impl Config {
                 }
             })
             .sum::<Dollar>();
-        let to_distribute = total_val - self.core_position.minimum;
+        let to_distribute = total_val - self.cash_sweep.minimum;
         if to_distribute < 0.0 {
             bail!(
                 "Not enough value to maintain core position minimum. Sell all investments or transfer more into account."
@@ -151,11 +151,11 @@ impl Config {
             .map(|mut adj| {
                 let action = if adj.ignored {
                     Action::Ignored
-                } else if adj.holding.symbol == self.core_position.symbol {
-                    if adj.holding.current_value > self.core_position.minimum {
-                        Action::Sell(adj.holding.current_value - self.core_position.minimum)
-                    } else if adj.holding.current_value < self.core_position.minimum {
-                        Action::Buy(self.core_position.minimum - adj.holding.current_value)
+                } else if adj.holding.symbol == self.cash_sweep.symbol {
+                    if adj.holding.current_value > self.cash_sweep.minimum {
+                        Action::Sell(adj.holding.current_value - self.cash_sweep.minimum)
+                    } else if adj.holding.current_value < self.cash_sweep.minimum {
+                        Action::Buy(self.cash_sweep.minimum - adj.holding.current_value)
                     } else {
                         Action::DoNothing
                     }
@@ -172,7 +172,7 @@ impl Config {
             })
             .collect();
         // sort core position first, then by current value, then by symbol name
-        adjustments.sort_by(|a, b| match b.holding.is_core.cmp(&a.holding.is_core) {
+        adjustments.sort_by(|a, b| match b.holding.is_cash.cmp(&a.holding.is_cash) {
             std::cmp::Ordering::Equal => match a
                 .holding
                 .current_value
@@ -201,7 +201,7 @@ mod tests {
         targets.insert("B".to_string(), 50.0);
         let config = Config {
             account_number: "123".to_string(),
-            core_position: CoreConfig {
+            cash_sweep: CashConfig {
                 symbol: "CORE".to_string(),
                 minimum: 100.0,
             },
@@ -215,7 +215,7 @@ mod tests {
         targets.insert("B".to_string(), 40.0);
         let config = Config {
             account_number: "123".to_string(),
-            core_position: CoreConfig {
+            cash_sweep: CashConfig {
                 symbol: "CORE".to_string(),
                 minimum: 100.0,
             },
@@ -232,7 +232,7 @@ mod tests {
         targets.insert("B".to_string(), 50.0);
         let config = Config {
             account_number: "123".to_string(),
-            core_position: CoreConfig {
+            cash_sweep: CashConfig {
                 symbol: "CORE".to_string(),
                 minimum: 1000.0,
             },
@@ -247,17 +247,17 @@ mod tests {
                 Holding {
                     symbol: "CORE".to_string(),
                     current_value: 5000.0,
-                    is_core: true,
+                    is_cash: true,
                 },
                 Holding {
                     symbol: "A".to_string(),
                     current_value: 1000.0,
-                    is_core: false,
+                    is_cash: false,
                 },
                 Holding {
                     symbol: "B".to_string(),
                     current_value: 1000.0,
-                    is_core: false,
+                    is_cash: false,
                 },
             ],
         };
@@ -305,7 +305,7 @@ mod tests {
         targets.insert("A".to_string(), 100.0);
         let config = Config {
             account_number: "123".to_string(),
-            core_position: CoreConfig {
+            cash_sweep: CashConfig {
                 symbol: "CORE".to_string(),
                 minimum: 1000.0,
             },
@@ -320,17 +320,17 @@ mod tests {
                 Holding {
                     symbol: "CORE".to_string(),
                     current_value: 5000.0,
-                    is_core: true,
+                    is_cash: true,
                 },
                 Holding {
                     symbol: "A".to_string(),
                     current_value: 1000.0,
-                    is_core: false,
+                    is_cash: false,
                 },
                 Holding {
                     symbol: "IGNORED".to_string(),
                     current_value: 2000.0,
-                    is_core: false,
+                    is_cash: false,
                 },
             ],
         };

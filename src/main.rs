@@ -81,7 +81,7 @@ fn adjust_command<P: AsRef<Path>>(args: AdjustArgs, config_path: P) -> Result<()
                 "--core-minimum can only be used with a single account. Try specifying --account."
             );
         }
-        account_configs[0].core_position.minimum = keep;
+        account_configs[0].cash_sweep.minimum = keep;
     }
     let portfolio = provider::load_portfolio(&args.account_balances, args.provider)?;
     let mut accounts_with_config = HashMap::<String, (account::Balance, account::Config)>::new();

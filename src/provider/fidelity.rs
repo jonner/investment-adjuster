@@ -64,7 +64,7 @@ impl Provider for ProviderImpl {
                 .ok_or_else(|| anyhow!("Failed to get symbol"))?;
             if symbol == "Pending activity" {
                 debug!(?acct, "Adding pending activity to core position");
-                if let Some(core) = acct.holdings.iter_mut().find(|p| p.is_core) {
+                if let Some(core) = acct.holdings.iter_mut().find(|p| p.is_cash) {
                     core.current_value += current_value;
                 } else {
                     warn!(
@@ -76,7 +76,7 @@ impl Provider for ProviderImpl {
                 let pos = Holding {
                     symbol: symbol.trim_end_matches("**").to_string(),
                     current_value,
-                    is_core: symbol.ends_with("**"),
+                    is_cash: symbol.ends_with("**"),
                 };
                 debug!(?acct, ?pos, "adding regular position");
                 acct.holdings.push(pos);
