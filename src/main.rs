@@ -99,7 +99,7 @@ fn adjust_command<P: AsRef<Path>>(args: AdjustArgs, config_path: P) -> Result<()
         ));
     }
     for (_, (account, mut config)) in accounts_with_config {
-        config.ignored.extend(args.ignore.iter().cloned());
+        config.ignored_holdings.extend(args.ignore.iter().cloned());
 
         let adjustments = config.adjust_allocations(&account)?;
         let table = output::format_adjustments(adjustments);

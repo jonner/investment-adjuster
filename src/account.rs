@@ -47,7 +47,7 @@ pub struct Config {
     pub cash_sweep: CashConfig,
     pub targets: HashMap<String, Percent>,
     #[serde(default)]
-    pub ignored: Vec<String>,
+    pub ignored_holdings: Vec<String>,
 }
 
 impl Config {
@@ -118,7 +118,7 @@ impl Config {
                 .and_modify(|e| e.holding.current_value = holding.current_value)
                 .or_insert(PositionAdjustment {
                     holding: holding.clone(),
-                    ignored: self.ignored.contains(&holding.symbol),
+                    ignored: self.ignored_holdings.contains(&holding.symbol),
                     ..Default::default()
                 });
         }
@@ -206,7 +206,7 @@ mod tests {
                 minimum: 100.0,
             },
             targets,
-            ignored: vec![],
+            ignored_holdings: vec![],
         };
         assert!(config.validate().is_ok());
 
@@ -220,7 +220,7 @@ mod tests {
                 minimum: 100.0,
             },
             targets,
-            ignored: vec![],
+            ignored_holdings: vec![],
         };
         assert!(config.validate().is_err());
     }
@@ -237,7 +237,7 @@ mod tests {
                 minimum: 1000.0,
             },
             targets,
-            ignored: vec![],
+            ignored_holdings: vec![],
         };
 
         let balance = Balance {
@@ -310,7 +310,7 @@ mod tests {
                 minimum: 1000.0,
             },
             targets,
-            ignored: vec!["IGNORED".to_string()],
+            ignored_holdings: vec!["IGNORED".to_string()],
         };
 
         let balance = Balance {
