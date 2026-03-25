@@ -34,10 +34,18 @@ pub struct PositionAdjustment {
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
+pub struct CoreConfig {
+    pub symbol: String,
+    /// Minimum amount to retain in the core position in dollars
+    pub minimum: Dollar,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(rename_all = "PascalCase")]
 pub struct Config {
     pub account_number: String,
-    pub core_position: CorePosition,
-    targets: HashMap<String, Percent>,
+    pub core_position: CoreConfig,
+    pub targets: HashMap<String, Percent>,
     #[serde(default)]
     pub ignored: Vec<String>,
 }
@@ -183,12 +191,4 @@ impl Config {
         });
         Ok(adjustments)
     }
-}
-
-#[derive(Debug, Deserialize, Clone)]
-#[serde(rename_all = "PascalCase")]
-pub struct CorePosition {
-    pub symbol: String,
-    /// Minimum amount to retain in the core position in dollars
-    pub minimum: Dollar,
 }
