@@ -150,21 +150,21 @@ impl Config {
             .into_values()
             .map(|mut adj| {
                 let action = if adj.ignored {
-                    Action::Ignore
+                    Action::Ignored
                 } else if adj.position.symbol == self.core_position.symbol {
                     if adj.position.current_value > self.core_position.minimum {
                         Action::Sell(adj.position.current_value - self.core_position.minimum)
                     } else if adj.position.current_value < self.core_position.minimum {
                         Action::Buy(self.core_position.minimum - adj.position.current_value)
                     } else {
-                        Action::Nothing
+                        Action::DoNothing
                     }
                 } else {
                     let desired_val = to_distribute * (adj.target / 100.0);
                     match desired_val - adj.position.current_value {
                         val if val > 0.0 => Action::Buy(val.abs()),
                         val if val < 0.0 => Action::Sell(val.abs()),
-                        _ => Action::Nothing,
+                        _ => Action::DoNothing,
                     }
                 };
                 adj.action = action;
@@ -343,7 +343,7 @@ mod tests {
             .iter()
             .find(|a| a.position.symbol == "IGNORED")
             .unwrap();
-        matches!(ignored_adj.action, Action::Ignore);
+        matches!(ignored_adj.action, Action::Ignored);
 
         // the total value to consider for distribution is 6000 (5000 core +
         // 1000 A), since IGNORED is ignored

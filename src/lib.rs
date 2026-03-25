@@ -6,8 +6,8 @@ pub type Percent = f32;
 #[derive(Debug, Default)]
 pub enum Action {
     #[default]
-    Nothing,
-    Ignore,
+    DoNothing,
+    Ignored,
     Sell(Dollar),
     Buy(Dollar),
 }
