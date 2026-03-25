@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
 
-use crate::provider::Provider;
+use crate::provider::ProviderType;
 
 #[derive(Parser, Debug)]
 pub(crate) struct Cli {
@@ -43,10 +43,10 @@ pub(crate) struct AdjustArgs {
         long,
         value_enum,
         value_name = "PROVIDER_ID",
-        default_value_t = Provider::Fidelity,
+        default_value_t = ProviderType::Fidelity,
         help = "Investment provider associated with account balances file",
     )]
-    pub(crate) provider: Provider,
+    pub(crate) provider: ProviderType,
     #[arg(short, long, help = "Only show targets for the given account id")]
     pub(crate) account: Option<String>,
 }

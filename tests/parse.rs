@@ -1,10 +1,9 @@
-use investment_adjuster::provider::Provider;
+use investment_adjuster::provider::{self, ProviderType};
 
 #[test]
 fn parse_fidelity() {
     let filename = "./tests/data/example-portfolio-fidelity.csv";
-    let portfolio = Provider::Fidelity
-        .load_portfolio(filename)
+    let portfolio = provider::load_portfolio(filename, ProviderType::Fidelity)
         .expect("Failed to parse fidelity example");
 
     assert_eq!(portfolio.accounts.len(), 2);
@@ -26,8 +25,7 @@ fn parse_fidelity() {
 #[test]
 fn parse_vanguard() {
     let filename = "./tests/data/example-portfolio-vanguard.csv";
-    let portfolio = Provider::Vanguard
-        .load_portfolio(filename)
+    let portfolio = provider::load_portfolio(filename, ProviderType::Vanguard)
         .expect("Failed to parse vanguard example");
 
     assert_eq!(portfolio.accounts.len(), 2);

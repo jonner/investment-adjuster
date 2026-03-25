@@ -8,22 +8,21 @@ mod fidelity;
 mod vanguard;
 
 #[derive(Clone, Debug, ValueEnum)]
-pub enum Provider {
+pub enum ProviderType {
     Fidelity,
     Vanguard,
 }
 
-impl Provider {
-    pub fn load_portfolio<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<Portfolio> {
-        match self {
-            Provider::Fidelity => {
-                let accounts = fidelity::parse_accounts(path)?;
-                Ok(Portfolio { accounts })
-            }
-            Provider::Vanguard => {
-                let accounts = vanguard::parse_accounts(path)?;
-                Ok(Portfolio { accounts })
-            }
-        }
+fn provider(t: ProviderType) -> Box<dyn Provider> {
+    match t {
+        ProviderType::Fidelity => Box::new(fidelity::provider()),
+        ProviderType::Vanguard => Box::new(vanguard::provider()),
     }
+}
+pub fn load_portfolio<P: AsRef<Path>>(path: P, ptype: ProviderType) -> anyhow::Result<Portfolio> {
+    provider(ptype).parse_accounts(path.as_ref())
+}
+
+trait Provider {
+    fn parse_accounts(&self, path: &Path) -> anyhow::Result<Portfolio>;
 }

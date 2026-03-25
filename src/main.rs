@@ -83,7 +83,7 @@ fn adjust_command<P: AsRef<Path>>(args: AdjustArgs, config_path: P) -> Result<()
         }
         account_configs[0].core_position.minimum = keep;
     }
-    let portfolio = args.provider.load_portfolio(&args.account_balances)?;
+    let portfolio = provider::load_portfolio(&args.account_balances, args.provider)?;
     let mut accounts_with_config = HashMap::<String, (account::Balance, account::Config)>::new();
     for account in portfolio.accounts {
         if let Some(cfg) = account_configs
