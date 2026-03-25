@@ -5,10 +5,12 @@ use clap::ValueEnum;
 use crate::account::Portfolio;
 
 mod fidelity;
+mod vanguard;
 
 #[derive(Clone, Debug, ValueEnum)]
 pub enum Provider {
     Fidelity,
+    Vanguard,
 }
 
 impl Provider {
@@ -16,6 +18,10 @@ impl Provider {
         match self {
             Provider::Fidelity => {
                 let accounts = fidelity::parse_accounts(path)?;
+                Ok(Portfolio { accounts })
+            }
+            Provider::Vanguard => {
+                let accounts = vanguard::parse_accounts(path)?;
                 Ok(Portfolio { accounts })
             }
         }
