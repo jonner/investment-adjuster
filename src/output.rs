@@ -83,7 +83,7 @@ pub fn format_adjustments(adjustments: Vec<PositionAdjustment>) -> Table {
                         _ => 0.0,
                     },
             ),
-            ignore: matches!(adj.action, Action::Ignored),
+            ignore: adj.ignored,
         })
         .collect();
     let mut table = Table::new(rows.iter());

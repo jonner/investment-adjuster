@@ -150,7 +150,7 @@ impl Config {
             .into_values()
             .map(|mut adj| {
                 let action = if adj.ignored {
-                    Action::Ignored
+                    Action::DoNothing
                 } else if adj.holding.symbol == self.cash_sweep.symbol {
                     if adj.holding.current_value > self.cash_sweep.minimum {
                         Action::Sell(adj.holding.current_value - self.cash_sweep.minimum)
@@ -343,7 +343,7 @@ mod tests {
             .iter()
             .find(|a| a.holding.symbol == "IGNORED")
             .unwrap();
-        matches!(ignored_adj.action, Action::Ignored);
+        assert!(ignored_adj.ignored);
 
         // the total value to consider for distribution is 6000 (5000 core +
         // 1000 A), since IGNORED is ignored
