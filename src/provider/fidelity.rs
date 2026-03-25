@@ -5,7 +5,7 @@ use tracing::{debug, warn};
 
 use crate::{
     Dollar,
-    account::{Balance, Position},
+    account::{Balance, Holding},
     provider::Provider,
 };
 
@@ -64,7 +64,7 @@ impl Provider for ProviderImpl {
                 .ok_or_else(|| anyhow!("Failed to get symbol"))?;
             if symbol == "Pending activity" {
                 debug!(?acct, "Adding pending activity to core position");
-                if let Some(core) = acct.positions.iter_mut().find(|p| p.is_core) {
+                if let Some(core) = acct.holdings.iter_mut().find(|p| p.is_core) {
                     core.current_value += current_value;
                 } else {
                     warn!(
@@ -73,13 +73,13 @@ impl Provider for ProviderImpl {
                     );
                 }
             } else {
-                let pos = Position {
+                let pos = Holding {
                     symbol: symbol.trim_end_matches("**").to_string(),
                     current_value,
                     is_core: symbol.ends_with("**"),
                 };
                 debug!(?acct, ?pos, "adding regular position");
-                acct.positions.push(pos);
+                acct.holdings.push(pos);
             }
         }
         Ok(crate::account::Portfolio {

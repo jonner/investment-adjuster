@@ -58,14 +58,14 @@ struct AllocationTableRow {
 pub fn format_adjustments(adjustments: Vec<PositionAdjustment>) -> Table {
     let total: f32 = adjustments
         .iter()
-        .map(|adj| adj.position.current_value)
+        .map(|adj| adj.holding.current_value)
         .sum();
     let rows: Vec<AllocationTableRow> = adjustments
         .iter()
         .map(|adj| AllocationTableRow {
-            symbol: adj.position.symbol.clone(),
-            current_value: adj.position.current_value,
-            current_percentage: adj.position.current_value / total * 100.0,
+            symbol: adj.holding.symbol.clone(),
+            current_value: adj.holding.current_value,
+            current_percentage: adj.holding.current_value / total * 100.0,
             target: Some(adj.target),
             buy: match adj.action {
                 Action::Buy(val) => Some(val),
@@ -76,7 +76,7 @@ pub fn format_adjustments(adjustments: Vec<PositionAdjustment>) -> Table {
                 _ => None,
             },
             result: Some(
-                adj.position.current_value
+                adj.holding.current_value
                     + match adj.action {
                         Action::Sell(val) => -val,
                         Action::Buy(val) => val,

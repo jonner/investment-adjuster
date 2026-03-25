@@ -9,11 +9,11 @@ use crate::{Action, Dollar, Percent};
 pub struct Balance {
     pub account_number: String,
     pub account_name: String,
-    pub positions: Vec<Position>,
+    pub holdings: Vec<Holding>,
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct Position {
+pub struct Holding {
     pub symbol: String,
     pub current_value: Dollar,
     pub is_core: bool,
@@ -26,7 +26,7 @@ pub struct Portfolio {
 
 #[derive(Debug, Default)]
 pub struct PositionAdjustment {
-    pub position: Position,
+    pub holding: Holding,
     pub target: Percent,
     pub ignored: bool,
     pub action: Action,
@@ -55,7 +55,7 @@ impl Config {
         let total_percent: f32 = self.targets.values().sum();
         anyhow::ensure!(
             total_percent == 100.0,
-            "Target positions for account {} do not add up to 100%",
+            "Target allocations for account {} do not add up to 100%",
             self.account_number
         );
         Ok(())
@@ -76,7 +76,7 @@ impl Config {
 
     pub fn adjust_allocations(&self, balance: &Balance) -> anyhow::Result<Vec<PositionAdjustment>> {
         let core = balance
-            .positions
+            .holdings
             .iter()
             .find(|&pos| {
                 pos.symbol == self.core_position.symbol
@@ -105,20 +105,20 @@ impl Config {
                 .and_modify(|e| e.target = target_percent)
                 .or_insert(PositionAdjustment {
                     target: target_percent,
-                    position: Position {
+                    holding: Holding {
                         symbol: target_symbol.clone(),
                         ..Default::default()
                     },
                     ..Default::default()
                 });
         }
-        for pos in balance.positions.iter() {
+        for holding in balance.holdings.iter() {
             adjustments
-                .entry(pos.symbol.to_owned())
-                .and_modify(|e| e.position.current_value = pos.current_value)
+                .entry(holding.symbol.to_owned())
+                .and_modify(|e| e.holding.current_value = holding.current_value)
                 .or_insert(PositionAdjustment {
-                    position: pos.clone(),
-                    ignored: self.ignored.contains(&pos.symbol),
+                    holding: holding.clone(),
+                    ignored: self.ignored.contains(&holding.symbol),
                     ..Default::default()
                 });
         }
@@ -135,7 +135,7 @@ impl Config {
                 if adj.ignored {
                     None
                 } else {
-                    Some(adj.position.current_value)
+                    Some(adj.holding.current_value)
                 }
             })
             .sum::<Dollar>();
@@ -151,17 +151,17 @@ impl Config {
             .map(|mut adj| {
                 let action = if adj.ignored {
                     Action::Ignored
-                } else if adj.position.symbol == self.core_position.symbol {
-                    if adj.position.current_value > self.core_position.minimum {
-                        Action::Sell(adj.position.current_value - self.core_position.minimum)
-                    } else if adj.position.current_value < self.core_position.minimum {
-                        Action::Buy(self.core_position.minimum - adj.position.current_value)
+                } else if adj.holding.symbol == self.core_position.symbol {
+                    if adj.holding.current_value > self.core_position.minimum {
+                        Action::Sell(adj.holding.current_value - self.core_position.minimum)
+                    } else if adj.holding.current_value < self.core_position.minimum {
+                        Action::Buy(self.core_position.minimum - adj.holding.current_value)
                     } else {
                         Action::DoNothing
                     }
                 } else {
                     let desired_val = to_distribute * (adj.target / 100.0);
-                    match desired_val - adj.position.current_value {
+                    match desired_val - adj.holding.current_value {
                         val if val > 0.0 => Action::Buy(val.abs()),
                         val if val < 0.0 => Action::Sell(val.abs()),
                         _ => Action::DoNothing,
@@ -172,15 +172,15 @@ impl Config {
             })
             .collect();
         // sort core position first, then by current value, then by symbol name
-        adjustments.sort_by(|a, b| match b.position.is_core.cmp(&a.position.is_core) {
+        adjustments.sort_by(|a, b| match b.holding.is_core.cmp(&a.holding.is_core) {
             std::cmp::Ordering::Equal => match a
-                .position
+                .holding
                 .current_value
-                .partial_cmp(&b.position.current_value)
+                .partial_cmp(&b.holding.current_value)
                 .unwrap_or(std::cmp::Ordering::Equal)
                 .reverse()
             {
-                std::cmp::Ordering::Equal => a.position.symbol.cmp(&b.position.symbol),
+                std::cmp::Ordering::Equal => a.holding.symbol.cmp(&b.holding.symbol),
                 res => res,
             },
             res => res,
@@ -243,18 +243,18 @@ mod tests {
         let balance = Balance {
             account_number: "123".to_string(),
             account_name: "Test Account".to_string(),
-            positions: vec![
-                Position {
+            holdings: vec![
+                Holding {
                     symbol: "CORE".to_string(),
                     current_value: 5000.0,
                     is_core: true,
                 },
-                Position {
+                Holding {
                     symbol: "A".to_string(),
                     current_value: 1000.0,
                     is_core: false,
                 },
-                Position {
+                Holding {
                     symbol: "B".to_string(),
                     current_value: 1000.0,
                     is_core: false,
@@ -267,7 +267,7 @@ mod tests {
 
         let core_adj = adjustments
             .iter()
-            .find(|a| a.position.symbol == "CORE")
+            .find(|a| a.holding.symbol == "CORE")
             .unwrap();
         if let Action::Sell(amount) = core_adj.action {
             assert_eq!(amount, 4000.0);
@@ -280,7 +280,7 @@ mod tests {
 
         let a_adj = adjustments
             .iter()
-            .find(|a| a.position.symbol == "A")
+            .find(|a| a.holding.symbol == "A")
             .unwrap();
         if let Action::Buy(amount) = a_adj.action {
             assert_eq!(amount, 2000.0);
@@ -290,7 +290,7 @@ mod tests {
 
         let b_adj = adjustments
             .iter()
-            .find(|a| a.position.symbol == "B")
+            .find(|a| a.holding.symbol == "B")
             .unwrap();
         if let Action::Buy(amount) = b_adj.action {
             assert_eq!(amount, 2000.0);
@@ -316,18 +316,18 @@ mod tests {
         let balance = Balance {
             account_number: "123".to_string(),
             account_name: "Test Account".to_string(),
-            positions: vec![
-                Position {
+            holdings: vec![
+                Holding {
                     symbol: "CORE".to_string(),
                     current_value: 5000.0,
                     is_core: true,
                 },
-                Position {
+                Holding {
                     symbol: "A".to_string(),
                     current_value: 1000.0,
                     is_core: false,
                 },
-                Position {
+                Holding {
                     symbol: "IGNORED".to_string(),
                     current_value: 2000.0,
                     is_core: false,
@@ -341,7 +341,7 @@ mod tests {
 
         let ignored_adj = adjustments
             .iter()
-            .find(|a| a.position.symbol == "IGNORED")
+            .find(|a| a.holding.symbol == "IGNORED")
             .unwrap();
         matches!(ignored_adj.action, Action::Ignored);
 
@@ -349,7 +349,7 @@ mod tests {
         // 1000 A), since IGNORED is ignored
         let a_adj = adjustments
             .iter()
-            .find(|a| a.position.symbol == "A")
+            .find(|a| a.holding.symbol == "A")
             .unwrap();
         if let Action::Buy(amount) = a_adj.action {
             assert_eq!(amount, 4000.0);
@@ -358,7 +358,7 @@ mod tests {
         }
         let core_adj = adjustments
             .iter()
-            .find(|a| a.position.symbol == "CORE")
+            .find(|a| a.holding.symbol == "CORE")
             .unwrap();
         if let Action::Sell(amount) = core_adj.action {
             assert_eq!(amount, 4000.0);

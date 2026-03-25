@@ -5,7 +5,7 @@ use tracing::{debug, warn};
 
 use crate::{
     Dollar,
-    account::{Balance, Portfolio, Position},
+    account::{Balance, Holding, Portfolio},
     provider::Provider,
 };
 
@@ -60,14 +60,14 @@ impl Provider for ProviderImpl {
                 .get(Columns::TotalValue as usize)
                 .and_then(|s| s.replace('$', "").parse::<Dollar>().ok())
                 .ok_or_else(|| anyhow!("Failed to get symbol"))?;
-            let pos = Position {
+            let holding = Holding {
                 symbol: symbol.trim_end_matches("**").to_string(),
                 current_value: total_value,
                 // FIXME: is this reasonable?
                 is_core: symbol.eq_ignore_ascii_case("VMFXX"),
             };
-            debug!(?acct, ?pos, "adding regular position");
-            acct.positions.push(pos);
+            debug!(?acct, ?holding, "adding regular position");
+            acct.holdings.push(holding);
         }
         Ok(Portfolio {
             accounts: accounts.into_values().collect(),
