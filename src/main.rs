@@ -203,7 +203,7 @@ fn find_ignored_rows(rows: &[AllocationTableRow]) -> Vec<usize> {
     let mut ignored_rows = Vec::new();
     for (i, row) in rows.iter().enumerate() {
         if row.ignore {
-            // header row is techincally the first row
+            // header row is technically the first row
             ignored_rows.push(i + 1)
         }
     }
