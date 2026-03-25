@@ -33,7 +33,7 @@ pub struct PositionAdjustment {
 }
 
 #[derive(Debug, Deserialize, Clone)]
-#[serde(rename_all = "PascalCase")]
+#[serde(rename_all = "PascalCase", deny_unknown_fields)]
 pub struct CashConfig {
     pub symbol: String,
     /// Minimum amount to retain in the core position in dollars
@@ -41,7 +41,7 @@ pub struct CashConfig {
 }
 
 #[derive(Debug, Deserialize, Clone)]
-#[serde(rename_all = "PascalCase")]
+#[serde(rename_all = "PascalCase", deny_unknown_fields)]
 pub struct Config {
     pub account_number: String,
     pub cash_sweep: CashConfig,
