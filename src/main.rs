@@ -13,7 +13,7 @@ use tabled::{
     },
 };
 
-use crate::{account::AccountBalance, account::AccountConfig, cli::AdjustArgs};
+use crate::cli::AdjustArgs;
 
 mod account;
 mod cli;
@@ -101,7 +101,7 @@ fn edit_command<P: AsRef<Path>>(config_path: P) -> Result<(), anyhow::Error> {
         if !exit_status.success() {
             warn!("Failed to edit configuration file '{}'", path.display());
         } else {
-            match AccountConfig::load_from_file(&config_path) {
+            match account::Config::load_from_file(&config_path) {
                 Ok(_) => {
                     println!("Updated configuration file '{}'", path.display());
                     try_again = false;
@@ -125,7 +125,7 @@ fn edit_command<P: AsRef<Path>>(config_path: P) -> Result<(), anyhow::Error> {
 }
 
 fn adjust_command<P: AsRef<Path>>(args: AdjustArgs, config_path: P) -> Result<(), anyhow::Error> {
-    let mut account_configs = AccountConfig::load_from_file(config_path.as_ref())?;
+    let mut account_configs = account::Config::load_from_file(config_path.as_ref())?;
     if let Some(acct) = args.account {
         account_configs.retain(|acc| acc.account_number == acct)
     }
@@ -138,7 +138,7 @@ fn adjust_command<P: AsRef<Path>>(args: AdjustArgs, config_path: P) -> Result<()
         account_configs[0].core_position.minimum = keep;
     }
     let portfolio = args.provider.load_portfolio(&args.account_balances)?;
-    let mut accounts_with_config = HashMap::<String, (AccountBalance, AccountConfig)>::new();
+    let mut accounts_with_config = HashMap::<String, (account::Balance, account::Config)>::new();
     for account in portfolio.accounts {
         if let Some(cfg) = account_configs
             .iter()

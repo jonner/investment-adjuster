@@ -12,7 +12,7 @@ pub(crate) mod fidelity {
 
     use crate::{
         Dollar,
-        account::{AccountBalance, Position},
+        account::{Balance, Position},
     };
 
     pub enum Columns {
@@ -24,7 +24,7 @@ pub(crate) mod fidelity {
 
     pub fn parse_accounts<P: AsRef<Path>>(
         path: P,
-    ) -> Result<HashMap<String, AccountBalance>, anyhow::Error> {
+    ) -> Result<HashMap<String, Balance>, anyhow::Error> {
         let mut csv_reader = csv::ReaderBuilder::new()
             .flexible(true)
             .from_path(path.as_ref())?;
@@ -37,7 +37,7 @@ pub(crate) mod fidelity {
             warn!(?headers, "Unexpected headers");
             bail!("Unexpected csv file format");
         }
-        let mut accounts = HashMap::<String, AccountBalance>::new();
+        let mut accounts = HashMap::<String, Balance>::new();
         for row in csv_reader.records() {
             let row = row?;
             debug!(?row, "parsed row");
@@ -53,7 +53,7 @@ pub(crate) mod fidelity {
             };
             let acct = accounts
                 .entry(account_number.to_string())
-                .or_insert(AccountBalance {
+                .or_insert(Balance {
                     account_number: account_number.to_string(),
                     account_name: account_name.to_string(),
                     ..Default::default()

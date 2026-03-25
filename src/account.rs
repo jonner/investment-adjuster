@@ -6,7 +6,7 @@ use serde::Deserialize;
 use crate::{Action, Dollar, Percent};
 
 #[derive(Debug, Default)]
-pub struct AccountBalance {
+pub struct Balance {
     pub account_number: String,
     pub account_name: String,
     pub positions: Vec<Position>,
@@ -21,7 +21,7 @@ pub struct Position {
 
 #[derive(Debug)]
 pub struct Portfolio {
-    pub accounts: Vec<AccountBalance>,
+    pub accounts: Vec<Balance>,
 }
 
 #[derive(Debug, Default)]
@@ -34,7 +34,7 @@ pub struct PositionAdjustment {
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
-pub struct AccountConfig {
+pub struct Config {
     pub account_number: String,
     pub core_position: CorePosition,
     targets: HashMap<String, Percent>,
@@ -42,7 +42,7 @@ pub struct AccountConfig {
     pub ignored: Vec<String>,
 }
 
-impl AccountConfig {
+impl Config {
     fn validate(&self) -> anyhow::Result<()> {
         let total_percent: f32 = self.targets.values().sum();
         anyhow::ensure!(
@@ -70,10 +70,7 @@ impl AccountConfig {
         self.targets.clone()
     }
 
-    pub fn adjust_allocations(
-        &self,
-        balance: &AccountBalance,
-    ) -> anyhow::Result<Vec<PositionAdjustment>> {
+    pub fn adjust_allocations(&self, balance: &Balance) -> anyhow::Result<Vec<PositionAdjustment>> {
         let core = balance
             .positions
             .iter()
