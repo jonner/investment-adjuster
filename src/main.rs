@@ -1,4 +1,4 @@
-use investment_adjuster::{Action, Dollar, Percent};
+use investment_adjuster::{Action, Dollar, Percent, account, provider};
 use std::{collections::HashMap, io::Write, path::Path};
 use tracing::warn;
 
@@ -8,10 +8,8 @@ use directories::ProjectDirs;
 
 use crate::cli::AdjustArgs;
 
-mod account;
 mod cli;
 mod output;
-mod provider;
 
 fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
