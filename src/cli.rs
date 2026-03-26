@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
-use investment_adjuster::provider::ProviderType;
+use driftfix::provider::ProviderType;
 
 #[derive(Parser, Debug)]
 pub(crate) struct Cli {

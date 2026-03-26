@@ -1,4 +1,4 @@
-use investment_adjuster::provider::{self, ProviderType};
+use driftfix::provider::{self, ProviderType};
 
 fn main() {
     divan::main()

@@ -1,4 +1,4 @@
-use investment_adjuster::{Action, Dollar, Percent, account, provider};
+use driftfix::{Action, Dollar, Percent, account, provider};
 use std::{collections::HashMap, io::Write, path::Path};
 use tracing::warn;
 
@@ -15,10 +15,10 @@ fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
     let opts = cli::Cli::parse();
 
-    let Some(config_path) =
-        opts.config
-            .or(ProjectDirs::from("org", "quotidian", "investment-adjuster")
-                .map(|pdirs| pdirs.config_dir().join("target.yml")))
+    let Some(config_path) = opts
+        .config
+        .or(ProjectDirs::from("org", "quotidian", "driftfix")
+            .map(|pdirs| pdirs.config_dir().join("target.yml")))
     else {
         anyhow::bail!("Failed to get target path");
     };

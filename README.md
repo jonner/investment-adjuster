@@ -1,4 +1,4 @@
-# investment-adjuster
+# driftfix
 This is a very simple program that takes as input a file describing an
 investment portfolio (currently only Fidelity CSV format is supported). It
 compares the holdings in the portfolio to a target allocation configuration
@@ -7,7 +7,7 @@ order to bring the portfolio into alignment with the target allocation.
 
 ## Configuration
 Create a `target.yml` file in your application config directory by running
-`investment-adjuster edit`. In that configuration file, you should specify the
+`driftfix edit`. In that configuration file, you should specify the
 target fund allocations for your accounts. For example:
 
 ```yaml
@@ -32,7 +32,7 @@ Then download your account data from the fidelity website. Go to the 'Positions'
 tab in your account, and click the 3 dots icon in the top right of the table and
 select 'Download'. Then run the application against this csv file:
 ```
-$ investment-adjuster adjust portfolio.csv
+$ driftfix plan portfolio.csv
 
 Account 123456789: Retirement Account
 ╭────────┬──────────┬─────────┬────────┬──────────┬──────────┬──────────╮
@@ -57,7 +57,7 @@ investments to get back up to that minimum value. For example, if we had the
 minimum cash value set to $3000.00:
 
 ```
-$ investment-adjuster adjust portfolio.csv
+$ driftfix plan portfolio.csv
 
 Account 123456789: Retirement Account
 ╭────────┬──────────┬─────────┬────────┬──────────┬──────────┬──────────╮
