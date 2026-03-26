@@ -6,7 +6,7 @@ use anyhow::anyhow;
 use clap::Parser;
 use directories::ProjectDirs;
 
-use crate::cli::AdjustArgs;
+use crate::cli::PlanArgs;
 
 mod cli;
 mod output;
@@ -27,7 +27,7 @@ fn main() -> anyhow::Result<()> {
         cli::Command::Edit => {
             edit_command(&config_path)?;
         }
-        cli::Command::Adjust(args) => adjust_command(args, config_path)?,
+        cli::Command::Plan(args) => plan_command(args, config_path)?,
     }
     Ok(())
 }
@@ -68,7 +68,7 @@ fn edit_command<P: AsRef<Path>>(config_path: P) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-fn adjust_command<P: AsRef<Path>>(args: AdjustArgs, config_path: P) -> Result<(), anyhow::Error> {
+fn plan_command<P: AsRef<Path>>(args: PlanArgs, config_path: P) -> Result<(), anyhow::Error> {
     let mut account_configs = account::Config::load_from_file(config_path.as_ref())?;
     if let Some(acct) = args.account {
         account_configs.retain(|acc| acc.account_number == acct)

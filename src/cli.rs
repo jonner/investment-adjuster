@@ -17,7 +17,7 @@ pub(crate) struct Cli {
 }
 
 #[derive(Args, Debug)]
-pub(crate) struct AdjustArgs {
+pub(crate) struct PlanArgs {
     #[arg(
         value_name = "ACCOUNT_BALANCES",
         help = "A file containing account balances"
@@ -53,7 +53,7 @@ pub(crate) struct AdjustArgs {
 #[derive(Subcommand, Debug)]
 pub(crate) enum Command {
     #[command(about = "Calculate adjustments needed to acheive configured target allocations")]
-    Adjust(AdjustArgs),
+    Plan(PlanArgs),
     #[command(about = "Edit the target allocation configuration file")]
     Edit,
 }
