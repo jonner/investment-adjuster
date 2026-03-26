@@ -42,7 +42,8 @@ Account 123456789: Retirement Account
 │  FSKAX │ $9397.50 │   68.0% │  45.0% │ $3629.85 │          │ $5767.65 │
 │  FXNAX │ $1567.50 │   11.3% │  25.0% │          │ $1636.75 │ $3204.25 │
 │  FTIHX │  $852.00 │    6.2% │  30.0% │          │ $2993.10 │ $3845.10 │
-╰────────┴──────────┴─────────┴────────┴──────────┴──────────┴──────────╯```
+╰────────┴──────────┴─────────┴────────┴──────────┴──────────┴──────────╯
+```
 
 The application noticed that the cash sweep exceeded the minimum configured
 value, so it allocates the excess $1000.00 to buy new investments. It uses the
