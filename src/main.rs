@@ -1,13 +1,19 @@
 use driftfix::{Action, Dollar, Percent, account, provider};
-use std::{collections::HashMap, io::Write, path::Path};
-use tracing::warn;
+use std::{
+    collections::HashMap,
+    io::Write,
+    path::{Path, PathBuf},
+    process::Stdio,
+};
+use tracing::{debug, warn};
 
 use anyhow::anyhow;
 use clap::Parser;
 use directories::ProjectDirs;
 
-use crate::cli::PlanArgs;
+use crate::{backup::BackupFile, cli::PlanArgs};
 
+mod backup;
 mod cli;
 mod output;
 
@@ -25,31 +31,42 @@ fn main() -> anyhow::Result<()> {
 
     match opts.command {
         cli::Command::Edit => {
-            edit_command(&config_path)?;
+            edit_command(config_path)?;
         }
         cli::Command::Plan(args) => plan_command(args, config_path)?,
     }
     Ok(())
 }
 
-fn edit_command<P: AsRef<Path>>(config_path: P) -> Result<(), anyhow::Error> {
-    let path = config_path.as_ref();
+fn edit_command(config_path: PathBuf) -> Result<(), anyhow::Error> {
+    let backup = BackupFile::new(config_path, Some(account::Config::example_config()?))?;
     let editor = std::env::var("VISUAL")
         .or_else(|_| std::env::var("EDITOR"))
         .unwrap_or_else(|_| "vi".to_string());
-    let mut try_again = true;
+    debug!(editor, "Using editor");
     let mut command = std::process::Command::new(editor);
-    command.arg(path);
-    while try_again {
+    command.stdin(Stdio::piped()).arg(backup.path());
+
+    loop {
         let exit_status = command.status()?;
         if !exit_status.success() {
-            warn!("Failed to edit configuration file '{}'", path.display());
+            warn!(
+                "Failed to edit configuration file '{}'",
+                backup.path().display()
+            );
         } else {
-            match account::Config::load_from_file(&config_path) {
-                Ok(_) => {
-                    println!("Updated configuration file '{}'", path.display());
-                    try_again = false;
-                }
+            match account::Config::load_from_file(backup.path()) {
+                Ok(_) => match backup.finish() {
+                    Ok(p) => {
+                        println!("Updated configuration file '{}'", p.display());
+                        return Ok(());
+                    }
+                    Err(backup::Error::NotModified) => {
+                        println!("Configuration file not updated");
+                        return Ok(());
+                    }
+                    Err(e) => return Err(e.into()),
+                },
                 Err(e) => {
                     println!("Failed to validate configuration file: {e}");
                     print!("Would you like to try again? [y/N] ");
@@ -58,14 +75,13 @@ fn edit_command<P: AsRef<Path>>(config_path: P) -> Result<(), anyhow::Error> {
                     if std::io::stdin().read_line(&mut input).is_ok() {
                         let line = input.trim().to_lowercase();
                         if !(line == "y" || line == "yes") {
-                            try_again = false
+                            return Ok(());
                         }
                     }
                 }
             }
         }
     }
-    Ok(())
 }
 
 fn plan_command<P: AsRef<Path>>(args: PlanArgs, config_path: P) -> Result<(), anyhow::Error> {

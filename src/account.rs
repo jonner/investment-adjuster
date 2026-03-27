@@ -1,7 +1,7 @@
 use std::{collections::HashMap, path::Path};
 
 use anyhow::{Context, anyhow, bail};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{Action, Dollar, Percent};
 
@@ -32,7 +32,7 @@ pub struct PositionAdjustment {
     pub action: Action,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase", deny_unknown_fields)]
 pub struct CashConfig {
     pub symbol: String,
@@ -40,7 +40,7 @@ pub struct CashConfig {
     pub minimum: Dollar,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase", deny_unknown_fields)]
 pub struct Config {
     pub account_number: String,
@@ -186,6 +186,28 @@ impl Config {
             res => res,
         });
         Ok(adjustments)
+    }
+
+    pub fn example_config() -> anyhow::Result<String> {
+        let mut targets = HashMap::new();
+        targets.insert("SYMBOL1".to_string(), 75.0_f32);
+        targets.insert("SYMBOL2".to_string(), 25.0_f32);
+        let ignored_holdings = vec!["SYMBOL3".to_string()];
+        let config = Self {
+            account_number: "<ACCOUNT_NUMBER>".to_string(),
+            cash_sweep: CashConfig {
+                symbol: "CASH_SYMBOL".to_string(),
+                minimum: 1000.0,
+            },
+            targets,
+            ignored_holdings,
+        };
+        let s = serde_yaml::to_string(&vec![config])?;
+        let comment = r#"# This is an example configuration.
+# Modify the following lines to suit your needs
+"#
+        .to_string();
+        Ok(comment + &s)
     }
 }
 
