@@ -7,7 +7,7 @@ use std::{
 };
 use tracing::{debug, warn};
 
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use clap::Parser;
 use directories::ProjectDirs;
 
@@ -20,20 +20,25 @@ mod output;
 fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
     let opts = cli::Cli::parse();
+    let config_dir = ProjectDirs::from("org", "quotidian", "driftfix")
+        .map(|pdirs| pdirs.config_dir().to_path_buf())
+        .ok_or_else(|| anyhow!("Failed to get configuration directory"))?;
 
-    let Some(config_path) = opts
-        .config
-        .or(ProjectDirs::from("org", "quotidian", "driftfix")
-            .map(|pdirs| pdirs.config_dir().join("target.yml")))
-    else {
-        anyhow::bail!("Failed to get target path");
-    };
+    // Ensure the config directory exists
+    match std::fs::create_dir_all(&config_dir) {
+        Err(e) if e.kind() != std::io::ErrorKind::AlreadyExists => {
+            bail!("Failed to initialize config directory: {e}");
+        }
+        _ => (),
+    }
+
+    let config_file = opts.config.unwrap_or(config_dir.join("target.yml"));
 
     match opts.command {
         cli::Command::Edit => {
-            edit_command(config_path)?;
+            edit_command(config_file)?;
         }
-        cli::Command::Plan(args) => plan_command(args, config_path)?,
+        cli::Command::Plan(args) => plan_command(args, config_file)?,
     }
     Ok(())
 }
