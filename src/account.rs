@@ -5,25 +5,39 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Action, Dollar, Percent};
 
+/// A representation of the balance of a brokerage account
 #[derive(Debug, Default)]
 pub struct Balance {
+    /// The unique ID number associated with the account
     pub account_number: String,
+    /// A user-friendly name for the account
     pub account_name: String,
+    /// A list of investments in the account
     pub holdings: Vec<Holding>,
 }
 
+/// A single investment within a brokerage account
 #[derive(Debug, Default, Clone)]
 pub struct Holding {
+    /// the string representing the stock or fund (e.g. 'GOOG')
     pub symbol: String,
+    /// The current value of the investment
     pub current_value: Dollar,
+    /// Whether this investment represents cash within the account. Different
+    /// brokerages have different terms for this. Fidelity calls it your 'Core
+    /// position', Vanguard calls it your 'Settlement fund'. It is generally cash or a
+    /// money market fund.
     pub is_cash: bool,
 }
 
+/// A set of accounts with the same provider
 #[derive(Debug)]
 pub struct Portfolio {
     pub accounts: Vec<Balance>,
 }
 
+/// A description of a current holding and what needs to be done to align it
+/// with a given target allocation
 #[derive(Debug, Default)]
 pub struct PositionAdjustment {
     pub holding: Holding,
@@ -32,25 +46,34 @@ pub struct PositionAdjustment {
     pub action: Action,
 }
 
+/// A definition of the desired state of the cash sweep within a given brokerage account
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase", deny_unknown_fields)]
 pub struct CashConfig {
+    /// The fund that represents the cash sweep (perhaps a money market fund)
     pub symbol: String,
     /// Minimum amount to retain in the core position in dollars
     pub minimum: Dollar,
 }
 
+/// A definition of the desired allocations for a given brokerage account
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase", deny_unknown_fields)]
 pub struct Config {
+    /// The account that is being configured
     pub account_number: String,
+    /// the desired state of the cash sweep for this account
     pub cash_sweep: CashConfig,
+    /// The desired target allocation for specific holdings within this account.
+    /// The percentages for all targets should add up to exactly 100%
     pub targets: HashMap<String, Percent>,
+    /// Any symbols listed here will be ignored from all analysis
     #[serde(default)]
     pub ignored_holdings: Vec<String>,
 }
 
 impl Config {
+    /// Ensure that the target allocations are reasonable
     fn validate(&self) -> anyhow::Result<()> {
         let total_percent: f32 = self.targets.values().sum();
         anyhow::ensure!(
@@ -61,6 +84,7 @@ impl Config {
         Ok(())
     }
 
+    /// Load a series of [Config] objects from the given yaml file path
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<Self>> {
         let targets_file = std::fs::File::open(path.as_ref())
             .with_context(|| format!("Failed to open file {:?}", path.as_ref()))?;
@@ -74,6 +98,8 @@ impl Config {
             .collect()
     }
 
+    /// Compare this configuration with the given `balance` and calculate what adjustments need to be
+    /// made in order to align the balance with the desired target allocations
     pub fn adjust_allocations(&self, balance: &Balance) -> anyhow::Result<Vec<PositionAdjustment>> {
         let core = balance
             .holdings
@@ -188,6 +214,7 @@ impl Config {
         Ok(adjustments)
     }
 
+    #[doc(hidden)]
     pub fn example_config() -> anyhow::Result<String> {
         let mut targets = HashMap::new();
         targets.insert("SYMBOL1".to_string(), 75.0_f32);
