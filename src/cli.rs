@@ -8,6 +8,7 @@ pub(crate) struct Cli {
     #[arg(
         short,
         long,
+        global = true,
         value_name = "CONFIG_FILE",
         help = "Override default target allocation configuration file"
     )]
