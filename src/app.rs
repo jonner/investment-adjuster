@@ -151,6 +151,7 @@ impl App {
         match &args.command {
             cli::DataCommands::Add(data_add_args) => self.data_add_command(data_add_args),
             cli::DataCommands::Remove { account } => self.data_remove_command(account),
+            cli::DataCommands::Reset => self.data_reset_command(),
         }
     }
 
@@ -205,6 +206,11 @@ impl App {
         let mut balances = self.load_balances()?;
         balances.retain(|b| b.account_number != account);
         self.save_balances(&balances)?;
+        Ok(())
+    }
+
+    fn data_reset_command(&self) -> Result<(), anyhow::Error> {
+        self.save_balances(&Vec::new())?;
         Ok(())
     }
 }

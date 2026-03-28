@@ -60,6 +60,7 @@ pub(crate) enum DataCommands {
         #[arg(help = "Remove latest balance for the given account ID")]
         account: String,
     },
+    Reset,
 }
 
 #[derive(Args, Debug)]
