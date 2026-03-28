@@ -261,8 +261,17 @@ impl App {
 
     fn data_remove_command(&self, account: &str) -> anyhow::Result<()> {
         let mut balances = self.load_balances()?;
-        balances.retain(|b| b.account_number != account);
-        self.save_balances(&balances)?;
+        match balances
+            .iter()
+            .position(|acct| acct.account_number == account)
+        {
+            Some(pos) => {
+                let balance = balances.remove(pos);
+                self.save_balances(&balances)?;
+                println!("Removed account {account} ({})", balance.total_value());
+            }
+            None => println!("Account {account} not found. Nothing done."),
+        }
         Ok(())
     }
 
