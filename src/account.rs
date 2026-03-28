@@ -16,6 +16,16 @@ pub struct Balance {
     pub holdings: Vec<Holding>,
 }
 
+impl Balance {
+    /// Calculates the total value of this account
+    pub fn total_value(&self) -> Dollar {
+        self.holdings
+            .iter()
+            .map(|holding| holding.current_value)
+            .sum()
+    }
+}
+
 /// A single investment within a brokerage account
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct Holding {

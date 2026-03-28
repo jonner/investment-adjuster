@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     fs::File,
     io::{ErrorKind, Read, Write},
     path::{Path, PathBuf},
@@ -136,14 +135,13 @@ impl App {
             bail!("Please import account balance data first. See help for more information.")
         }
         let naccounts = accounts.len();
-        let mut accounts_with_config =
-            HashMap::<String, (account::Balance, account::Config)>::new();
+        let mut accounts_with_config = Vec::<(account::Balance, account::Config)>::new();
         for account in accounts {
             if let Some(cfg) = account_configs
                 .iter()
                 .find(|t| t.account_number == account.account_number)
             {
-                accounts_with_config.insert(account.account_number.clone(), (account, cfg.clone()));
+                accounts_with_config.push((account, cfg.clone()));
             }
         }
         if accounts_with_config.is_empty() {
@@ -151,7 +149,15 @@ impl App {
                 "Balance data has been imported for {naccounts} accounts, but no target allocation configuration exists for any of these accounts."
             );
         }
-        for (_, (account, mut config)) in accounts_with_config {
+        accounts_with_config.sort_by(|a, b| {
+            match a.0.total_value().partial_cmp(&b.0.total_value()) {
+                Some(std::cmp::Ordering::Equal) | None => {
+                    a.1.account_number.cmp(&b.1.account_number)
+                }
+                Some(x) => x.reverse(),
+            }
+        });
+        for (account, mut config) in accounts_with_config {
             config.ignored_holdings.extend(args.ignore.iter().cloned());
 
             let adjustments = config.adjust_allocations(&account)?;
