@@ -177,6 +177,7 @@ impl App {
             cli::DataCommands::Remove { account } => self.data_remove_command(account),
             cli::DataCommands::Reset => self.data_reset_command(),
             cli::DataCommands::List => self.data_list_command(),
+            cli::DataCommands::Show { account } => self.data_show_command(account),
         }
     }
 
@@ -332,6 +333,30 @@ impl App {
         }
         println!();
         println!(" * = account has target allocations configured");
+        Ok(())
+    }
+
+    fn data_show_command(&self, account: &str) -> anyhow::Result<()> {
+        let mut portfolio = self.load_balances()?;
+        portfolio.retain(|item| item.account_number == account);
+        if portfolio.is_empty() {
+            bail!("No data found for account {account}");
+        }
+        let acct = portfolio.pop();
+        let balance_str = serde_yaml::to_string(&acct)?;
+        println!("Current balance:");
+        println!("----------------");
+        println!("{balance_str}");
+        let account_configs = self.load_account_configs()?;
+        if let Some(cfg) = account_configs
+            .iter()
+            .find(|item| item.account_number == account)
+        {
+            let config_str = serde_yaml::to_string(&cfg)?;
+            println!("Current allocation targets:");
+            println!("---------------------------");
+            println!("{config_str}");
+        }
         Ok(())
     }
 }

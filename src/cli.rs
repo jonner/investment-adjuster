@@ -57,6 +57,10 @@ pub(crate) struct DataArgs {
 pub(crate) enum DataCommands {
     Add(DataAddArgs),
     List,
+    Show {
+        #[arg(help = "Show data for the given account ID")]
+        account: String,
+    },
     Remove {
         #[arg(help = "Remove latest balance for the given account ID")]
         account: String,
