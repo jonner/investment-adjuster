@@ -30,11 +30,6 @@ pub(crate) enum MainCommands {
 #[derive(Args, Debug)]
 pub(crate) struct PlanArgs {
     #[arg(
-        value_name = "ACCOUNT_BALANCES",
-        help = "A file containing account balances"
-    )]
-    pub(crate) account_balances: PathBuf,
-    #[arg(
         short,
         long,
         value_delimiter = ',',
@@ -48,15 +43,6 @@ pub(crate) struct PlanArgs {
         help = "Amount to keeep in core position (overrides target allocation configuration for all accounts)"
     )]
     pub(crate) core_minimum: Option<f32>,
-    #[arg(
-        short,
-        long,
-        value_enum,
-        value_name = "PROVIDER_ID",
-        default_value_t = ProviderType::Fidelity,
-        help = "Investment provider associated with account balances file",
-    )]
-    pub(crate) provider: ProviderType,
     #[arg(short, long, help = "Only show targets for the given account id")]
     pub(crate) account: Option<String>,
 }

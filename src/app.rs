@@ -116,10 +116,10 @@ impl App {
             }
             account_configs[0].cash_sweep.minimum = keep;
         }
-        let portfolio = provider::load_portfolio(&args.account_balances, args.provider)?;
+        let accounts = self.load_balances()?;
         let mut accounts_with_config =
             HashMap::<String, (account::Balance, account::Config)>::new();
-        for account in portfolio.accounts {
+        for account in accounts {
             if let Some(cfg) = account_configs
                 .iter()
                 .find(|t| t.account_number == account.account_number)
