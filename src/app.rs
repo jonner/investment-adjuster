@@ -123,10 +123,10 @@ impl App {
         if account_configs.is_empty() {
             bail!("No allocation targets are configured. See help for more information.");
         }
-        if let Some(keep) = args.core_minimum {
+        if let Some(keep) = args.cash_minimum {
             if account_configs.len() != 1 {
                 anyhow::bail!(
-                    "--core-minimum can only be used with a single account. Try specifying --account."
+                    "--cash-minimum can only be used with a single account. Try specifying --account."
                 );
             }
             account_configs[0].cash_sweep.minimum = keep;

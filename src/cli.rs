@@ -40,9 +40,9 @@ pub(crate) struct PlanArgs {
     #[arg(
         long,
         value_name = "VALUE",
-        help = "Amount to keeep in core position (overrides target allocation configuration for all accounts)"
+        help = "Amount to keep in cash sweep (overrides target allocation configuration)"
     )]
-    pub(crate) core_minimum: Option<f32>,
+    pub(crate) cash_minimum: Option<f32>,
     #[arg(short, long, help = "Only show targets for the given account id")]
     pub(crate) account: Option<String>,
 }
