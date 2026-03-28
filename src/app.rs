@@ -112,8 +112,7 @@ impl App {
     }
 
     fn plan_command(&self, args: &PlanArgs) -> anyhow::Result<()> {
-        let mut account_configs =
-            account::AllocationConfig::load_from_file(&self.target_config_file)?;
+        let mut account_configs = self.load_account_configs()?;
         if let Some(acct) = &args.account {
             account_configs.retain(|acc| acc.account_number == *acct);
             if account_configs.is_empty() {
@@ -131,12 +130,13 @@ impl App {
             }
             account_configs[0].cash_sweep.minimum = keep;
         }
-        let accounts = self.load_balances()?;
+        let mut accounts = self.load_balances()?;
         if accounts.is_empty() {
             bail!("Please import account balance data first. See help for more information.")
         }
         let naccounts = accounts.len();
         let mut accounts_with_config = Vec::<(account::Balance, account::AllocationConfig)>::new();
+        sort_accounts(&mut accounts);
         for account in accounts {
             if let Some(cfg) = account_configs
                 .iter()
@@ -150,14 +150,6 @@ impl App {
                 "Balance data has been imported for {naccounts} accounts, but no target allocation configuration exists for any of these accounts."
             );
         }
-        accounts_with_config.sort_by(|a, b| {
-            match a.0.total_value().partial_cmp(&b.0.total_value()) {
-                Some(std::cmp::Ordering::Equal) | None => {
-                    a.1.account_number.cmp(&b.1.account_number)
-                }
-                Some(x) => x.reverse(),
-            }
-        });
         for (account, mut config) in accounts_with_config {
             config.ignored_holdings.extend(args.ignore.iter().cloned());
 
@@ -175,11 +167,16 @@ impl App {
         Ok(())
     }
 
+    fn load_account_configs(&self) -> Result<Vec<account::AllocationConfig>, anyhow::Error> {
+        account::AllocationConfig::load_from_file(&self.target_config_file)
+    }
+
     fn data_command(&self, args: &DataArgs) -> anyhow::Result<()> {
         match &args.command {
             cli::DataCommands::Add(data_add_args) => self.data_add_command(data_add_args),
             cli::DataCommands::Remove { account } => self.data_remove_command(account),
             cli::DataCommands::Reset => self.data_reset_command(),
+            cli::DataCommands::List => self.data_list_command(),
         }
     }
 
@@ -305,6 +302,45 @@ impl App {
         file.write_all(serde_yaml::to_string(config)?.as_bytes())?;
         Ok(())
     }
+
+    fn data_list_command(&self) -> Result<(), anyhow::Error> {
+        let mut portfolio = self.load_balances()?;
+        let account_configs = self.load_account_configs()?;
+        sort_accounts(&mut portfolio);
+        println!("Data from {} accounts:", portfolio.len());
+        let max_id = portfolio.iter().fold(0, |max, acct| {
+            if acct.account_number.len() > max {
+                acct.account_number.len()
+            } else {
+                max
+            }
+        });
+        for account in portfolio {
+            let has_config = account_configs
+                .iter()
+                .any(|item| item.account_number == account.account_number);
+            println!(
+                "{}{:>width$}: {}",
+                match has_config {
+                    true => " *",
+                    false => "  ",
+                },
+                account.account_number,
+                account.total_value(),
+                width = max_id + 2
+            );
+        }
+        println!();
+        println!(" * = account has target allocations configured");
+        Ok(())
+    }
+}
+
+fn sort_accounts(portfolio: &mut [Balance]) {
+    portfolio.sort_by(|a, b| match a.total_value().partial_cmp(&b.total_value()) {
+        Some(std::cmp::Ordering::Equal) | None => a.account_number.cmp(&b.account_number),
+        Some(x) => x.reverse(),
+    });
 }
 
 fn app_config_dir(dirs: &ProjectDirs) -> PathBuf {
