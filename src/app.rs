@@ -43,7 +43,7 @@ impl App {
         ensure_dir_exists(dirs.config_dir())?;
         ensure_dir_exists(dirs.data_dir())?;
 
-        let config = Self::load_config(&dirs.config_dir().join("config.yml"))?;
+        let config = Self::load_config(&app_config_dir(&dirs))?;
         Ok(Self {
             target_config_file: args
                 .target_config
@@ -195,9 +195,13 @@ impl App {
         Ok(())
     }
 
+    fn cached_balance_file(&self) -> PathBuf {
+        self.dirs.data_dir().join("balances.yml")
+    }
+
     #[tracing::instrument(ret, level = "trace")]
     fn save_balances(&self, balances: &[Balance]) -> anyhow::Result<()> {
-        let path = self.dirs.data_dir().join("balances.yml");
+        let path = self.cached_balance_file();
         let mut file = std::fs::OpenOptions::new()
             .write(true)
             .create(true)
@@ -210,7 +214,7 @@ impl App {
 
     #[tracing::instrument(ret, level = "trace")]
     fn load_balances(&self) -> anyhow::Result<Vec<Balance>> {
-        let path = self.dirs.data_dir().join("balances.yml");
+        let path = self.cached_balance_file();
         trace!(?path);
         match File::open(path) {
             Err(e) if e.kind() == ErrorKind::NotFound => Ok(Vec::new()),
@@ -261,6 +265,10 @@ impl App {
         file.write_all(serde_yaml::to_string(config)?.as_bytes())?;
         Ok(())
     }
+}
+
+fn app_config_dir(dirs: &ProjectDirs) -> PathBuf {
+    dirs.config_dir().join("config.yml")
 }
 
 fn ensure_dir_exists(dir: &Path) -> anyhow::Result<()> {
