@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::Path};
+use std::{collections::HashMap, io::ErrorKind, path::Path};
 
 use anyhow::{Context, anyhow, bail};
 use serde::{Deserialize, Serialize};
@@ -86,8 +86,13 @@ impl Config {
 
     /// Load a series of [Config] objects from the given yaml file path
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<Self>> {
-        let targets_file = std::fs::File::open(path.as_ref())
-            .with_context(|| format!("Failed to open file {:?}", path.as_ref()))?;
+        let targets_file = match std::fs::File::open(path.as_ref()) {
+            Ok(f) => Ok(f),
+            Err(e) if e.kind() == ErrorKind::NotFound => Err(anyhow!(
+                "Please configure target allocations first. See help for more information."
+            )),
+            e => e.with_context(|| format!("Failed to open file {:?}", path.as_ref())),
+        }?;
         let targets: Vec<Self> = serde_yaml::from_reader(targets_file)?;
         targets
             .into_iter()

@@ -10,8 +10,9 @@ use anyhow::{anyhow, bail};
 use directories::ProjectDirs;
 use driftfix::{
     account::{self, Balance},
-    provider,
+    provider::{self, ProviderType},
 };
+use serde::{Deserialize, Serialize};
 use tracing::{debug, trace, warn};
 
 use crate::{
@@ -20,10 +21,16 @@ use crate::{
     output,
 };
 
+#[derive(Default, Debug, Serialize, Deserialize)]
+struct Config {
+    default_provider: ProviderType,
+}
+
 #[derive(Debug)]
 pub struct App {
     dirs: ProjectDirs,
-    config_file: PathBuf,
+    target_config_file: PathBuf,
+    config: Config,
     args: cli::Cli,
 }
 
@@ -36,11 +43,13 @@ impl App {
         ensure_dir_exists(dirs.config_dir())?;
         ensure_dir_exists(dirs.data_dir())?;
 
+        let config = Self::load_config(&dirs.config_dir().join("config.yml"))?;
         Ok(Self {
-            config_file: args
-                .config
+            target_config_file: args
+                .target_config
                 .clone()
-                .unwrap_or(dirs.config_dir().join("target.yml")),
+                .unwrap_or(dirs.data_dir().join("target.yml")),
+            config,
             dirs,
             args,
         })
@@ -56,7 +65,7 @@ impl App {
 
     fn edit_command(&self) -> anyhow::Result<()> {
         let backup = BackupFile::new(
-            self.config_file.clone(),
+            self.target_config_file.clone(),
             Some(account::Config::example_config()?),
         )?;
         let editor = std::env::var("VISUAL")
@@ -104,7 +113,7 @@ impl App {
     }
 
     fn plan_command(&self, args: &PlanArgs) -> anyhow::Result<()> {
-        let mut account_configs = account::Config::load_from_file(&self.config_file)?;
+        let mut account_configs = account::Config::load_from_file(&self.target_config_file)?;
         if let Some(acct) = &args.account {
             account_configs.retain(|acc| acc.account_number == *acct);
             if account_configs.is_empty() {
@@ -139,7 +148,7 @@ impl App {
         }
         if accounts_with_config.is_empty() {
             bail!(
-                "Balance data has been imported for {naccounts} accounts, but no target allocation configuration exists for these accounts."
+                "Balance data has been imported for {naccounts} accounts, but no target allocation configuration exists for any of these accounts."
             );
         }
         for (_, (account, mut config)) in accounts_with_config {
@@ -166,7 +175,10 @@ impl App {
     }
 
     fn data_add_command(&self, args: &DataAddArgs) -> anyhow::Result<()> {
-        let portfolio = provider::load_portfolio(&args.account_balances, args.provider)?;
+        let portfolio = provider::load_portfolio(
+            &args.account_balances,
+            args.provider.unwrap_or(self.config.default_provider),
+        )?;
         for account in portfolio.accounts {
             self.import_account_balance(account)?;
         }
@@ -221,6 +233,32 @@ impl App {
 
     fn data_reset_command(&self) -> Result<(), anyhow::Error> {
         self.save_balances(&Vec::new())?;
+        Ok(())
+    }
+
+    #[tracing::instrument(ret, level = "trace")]
+    fn load_config(path: &Path) -> anyhow::Result<Config> {
+        match File::open(path) {
+            Err(e) if e.kind() == ErrorKind::NotFound => Ok(Config::default()),
+            Err(e) => Err(e.into()),
+            Ok(mut file) => {
+                let mut contents = String::new();
+                file.read_to_string(&mut contents)?;
+                trace!(contents, "read file");
+                serde_yaml::from_str(&contents).map_err(Into::into)
+            }
+        }
+    }
+
+    #[allow(dead_code)]
+    #[tracing::instrument(ret, level = "trace")]
+    fn save_config(config: &Config, path: &Path) -> anyhow::Result<()> {
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(path)?;
+        file.write_all(serde_yaml::to_string(config)?.as_bytes())?;
         Ok(())
     }
 }

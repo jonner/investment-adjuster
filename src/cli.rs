@@ -9,10 +9,10 @@ pub(crate) struct Cli {
         short,
         long,
         global = true,
-        value_name = "CONFIG_FILE",
+        value_name = "TARGET_CONFIG_FILE",
         help = "Override default target allocation configuration file"
     )]
-    pub config: Option<PathBuf>,
+    pub target_config: Option<PathBuf>,
     #[command(subcommand)]
     pub command: MainCommands,
 }
@@ -75,8 +75,7 @@ pub(crate) struct DataAddArgs {
         long,
         value_enum,
         value_name = "PROVIDER_ID",
-        default_value_t = ProviderType::Fidelity,
-        help = "Investment provider associated with account balances file",
+        help = "Investment provider associated with account balances file"
     )]
-    pub(crate) provider: ProviderType,
+    pub(crate) provider: Option<ProviderType>,
 }

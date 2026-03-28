@@ -1,6 +1,7 @@
 use std::{fmt::Debug, path::Path};
 
 use clap::ValueEnum;
+use serde::{Deserialize, Serialize};
 
 use crate::account::Portfolio;
 
@@ -8,8 +9,10 @@ mod fidelity;
 mod vanguard;
 
 /// Brokerage providers supported by this tool
-#[derive(Clone, Copy, Debug, ValueEnum)]
+#[derive(Serialize, Deserialize, Default, Clone, Copy, Debug, ValueEnum)]
+#[serde(rename_all = "lowercase")]
 pub enum ProviderType {
+    #[default]
     Fidelity,
     Vanguard,
 }
