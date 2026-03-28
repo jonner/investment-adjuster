@@ -150,6 +150,7 @@ impl App {
     fn data_command(&self, args: &DataArgs) -> anyhow::Result<()> {
         match &args.command {
             cli::DataCommands::Add(data_add_args) => self.data_add_command(data_add_args),
+            cli::DataCommands::Remove { account } => self.data_remove_command(account),
         }
     }
 
@@ -199,8 +200,14 @@ impl App {
             }
         }
     }
-}
 
+    fn data_remove_command(&self, account: &str) -> anyhow::Result<()> {
+        let mut balances = self.load_balances()?;
+        balances.retain(|b| b.account_number != account);
+        self.save_balances(&balances)?;
+        Ok(())
+    }
+}
 
 fn ensure_dir_exists(dir: &Path) -> anyhow::Result<()> {
     debug!(?dir, "ensuring dir exists");
