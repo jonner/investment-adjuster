@@ -6,7 +6,7 @@ use std::{
     process::Stdio,
 };
 
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use directories::ProjectDirs;
 use driftfix::{
     account::{self, Balance},
@@ -106,7 +106,13 @@ impl App {
     fn plan_command(&self, args: &PlanArgs) -> anyhow::Result<()> {
         let mut account_configs = account::Config::load_from_file(&self.config_file)?;
         if let Some(acct) = &args.account {
-            account_configs.retain(|acc| acc.account_number == *acct)
+            account_configs.retain(|acc| acc.account_number == *acct);
+            if account_configs.is_empty() {
+                bail!("No allocation targets are configured for that account");
+            }
+        }
+        if account_configs.is_empty() {
+            bail!("No allocation targets are configured. See help for more information.");
         }
         if let Some(keep) = args.core_minimum {
             if account_configs.len() != 1 {
@@ -117,6 +123,10 @@ impl App {
             account_configs[0].cash_sweep.minimum = keep;
         }
         let accounts = self.load_balances()?;
+        if accounts.is_empty() {
+            bail!("Please import account balance data first. See help for more information.")
+        }
+        let naccounts = accounts.len();
         let mut accounts_with_config =
             HashMap::<String, (account::Balance, account::Config)>::new();
         for account in accounts {
@@ -128,9 +138,9 @@ impl App {
             }
         }
         if accounts_with_config.is_empty() {
-            return Err(anyhow!(
-                "Failed to find any accounts with allocation targets",
-            ));
+            bail!(
+                "Balance data has been imported for {naccounts} accounts, but no target allocation configuration exists for these accounts."
+            );
         }
         for (_, (account, mut config)) in accounts_with_config {
             config.ignored_holdings.extend(args.ignore.iter().cloned());
