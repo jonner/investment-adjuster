@@ -163,11 +163,16 @@ impl App {
             let adjustments = config.adjust_allocations(&account)?;
             let table = output::format_adjustments(adjustments);
 
+            if !account.account_name.is_empty() {
+                println!("{}", account.account_name);
+            }
+            println!("Account number: {}", account.account_number);
             println!(
-                "Account {}: {}",
-                account.account_number, account.account_name
+                "Total balance: {}",
+                output::display_dollar(&account.total_value())
             );
-            println!("{table}\n");
+            println!("{table}");
+            println!();
         }
         Ok(())
     }

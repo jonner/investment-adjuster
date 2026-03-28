@@ -15,11 +15,11 @@ fn display_optional_dollar(val: &Option<Dollar>) -> String {
     }
 }
 
-fn display_dollar(val: &Dollar) -> String {
+pub fn display_dollar(val: &Dollar) -> String {
     format!("${val:.2}")
 }
 
-fn display_percentage(val: &Percent) -> String {
+pub fn display_percentage(val: &Percent) -> String {
     format!("{val:.1}%")
 }
 
