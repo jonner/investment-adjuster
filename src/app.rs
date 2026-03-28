@@ -188,19 +188,21 @@ impl App {
             &args.account_balances,
             args.provider.unwrap_or(self.config.default_provider),
         )?;
-        for account in portfolio.accounts {
-            self.import_account_balance(account)?;
-        }
+        self.import_account_balances(portfolio.accounts)?;
         Ok(())
     }
 
-    fn import_account_balance(&self, balance: Balance) -> anyhow::Result<()> {
-        let mut balances = self.load_balances()?;
-        trace!(?balances, "before adding new account balance");
-        balances.retain(|b| b.account_number != balance.account_number);
-        balances.push(balance);
-        trace!(?balances, "after adding new account balance");
-        self.save_balances(&balances)?;
+    fn import_account_balances(&self, new_balances: Vec<Balance>) -> anyhow::Result<()> {
+        let new_account_ids: Vec<_> = new_balances
+            .iter()
+            .map(|b| b.account_number.clone())
+            .collect();
+        let mut existing = self.load_balances()?;
+        trace!(?existing, "before adding new account balance");
+        existing.retain(|b| !new_account_ids.contains(&b.account_number));
+        existing.extend(new_balances);
+        trace!(?existing, "after adding new account balance");
+        self.save_balances(&existing)?;
         Ok(())
     }
 
