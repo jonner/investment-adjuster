@@ -8,7 +8,7 @@ mod fidelity;
 mod vanguard;
 
 /// Brokerage providers supported by this tool
-#[derive(Clone, Debug, ValueEnum)]
+#[derive(Clone, Copy, Debug, ValueEnum)]
 pub enum ProviderType {
     Fidelity,
     Vanguard,
