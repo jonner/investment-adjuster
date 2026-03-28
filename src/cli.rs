@@ -19,10 +19,10 @@ pub(crate) struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub(crate) enum MainCommands {
+    #[command(about = "Configure account target allocations", alias = "edit")]
+    Configure,
     #[command(about = "Calculate adjustments needed to acheive configured target allocations")]
     Plan(PlanArgs),
-    #[command(about = "Configure account target allocations")]
-    Edit,
     #[command(about = "Manage account balance data")]
     Data(DataArgs),
 }

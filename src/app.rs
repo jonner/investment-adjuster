@@ -56,7 +56,7 @@ impl App {
 
     pub fn run(&self) -> anyhow::Result<()> {
         match &self.args.command {
-            cli::MainCommands::Edit => self.edit_command(),
+            cli::MainCommands::Configure => self.edit_command(),
             cli::MainCommands::Plan(plan_args) => self.plan_command(plan_args),
             cli::MainCommands::Data(data_args) => self.data_command(data_args),
         }
