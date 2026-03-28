@@ -188,19 +188,19 @@ impl App {
             &args.account_balances,
             args.provider.unwrap_or(self.config.default_provider),
         )?;
-        if portfolio.accounts.is_empty() {
+        if portfolio.is_empty() {
             println!("No data imported");
         } else {
-            self.import_account_balances(&portfolio.accounts)?;
-            println!("Imported {} accounts:", portfolio.accounts.len());
-            let max_id = portfolio.accounts.iter().fold(0, |max, acct| {
+            self.import_account_balances(&portfolio)?;
+            println!("Imported {} accounts:", portfolio.len());
+            let max_id = portfolio.iter().fold(0, |max, acct| {
                 if acct.account_number.len() > max {
                     acct.account_number.len()
                 } else {
                     max
                 }
             });
-            for account in portfolio.accounts {
+            for account in portfolio {
                 println!(
                     "{:>width$}: {}",
                     account.account_number,

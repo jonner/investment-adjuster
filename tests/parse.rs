@@ -9,10 +9,9 @@ fn parse_fidelity() {
     let portfolio = provider::load_portfolio(filename, ProviderType::Fidelity)
         .expect("Failed to parse fidelity example");
 
-    assert_eq!(portfolio.accounts.len(), 2);
+    assert_eq!(portfolio.len(), 2);
 
     let individual = portfolio
-        .accounts
         .iter()
         .find(|a| a.account_number == "Z12345678")
         .unwrap();
@@ -31,10 +30,9 @@ fn parse_vanguard() {
     let portfolio = provider::load_portfolio(filename, ProviderType::Vanguard)
         .expect("Failed to parse vanguard example");
 
-    assert_eq!(portfolio.accounts.len(), 2);
+    assert_eq!(portfolio.len(), 2);
 
     let acct1 = portfolio
-        .accounts
         .iter()
         .find(|a| a.account_number == "12345678")
         .unwrap();

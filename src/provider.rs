@@ -3,7 +3,7 @@ use std::{fmt::Debug, path::Path};
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
-use crate::account::Portfolio;
+use crate::account::Balance;
 
 mod fidelity;
 mod vanguard;
@@ -25,11 +25,14 @@ fn provider(t: ProviderType) -> Box<dyn Provider> {
 }
 
 /// Load a portfolio from the given file path that conforms to the expected format for the given `ProviderType`
-pub fn load_portfolio<P: AsRef<Path>>(path: P, ptype: ProviderType) -> anyhow::Result<Portfolio> {
-    provider(ptype).parse_accounts(path.as_ref())
+pub fn load_portfolio<P: AsRef<Path>>(
+    path: P,
+    ptype: ProviderType,
+) -> anyhow::Result<Vec<Balance>> {
+    provider(ptype).parse_portfolio(path.as_ref())
 }
 
 /// a trait that must be implemented by providers in order to be supported by this tool
 trait Provider {
-    fn parse_accounts(&self, path: &Path) -> anyhow::Result<Portfolio>;
+    fn parse_portfolio(&self, path: &Path) -> anyhow::Result<Vec<Balance>>;
 }

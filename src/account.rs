@@ -41,12 +41,6 @@ pub struct Holding {
     pub is_cash: bool,
 }
 
-/// A set of accounts with the same provider
-#[derive(Debug)]
-pub struct Portfolio {
-    pub accounts: Vec<Balance>,
-}
-
 /// A description of a current holding and what needs to be done to align it
 /// with a given target allocation
 #[derive(Debug, Default)]

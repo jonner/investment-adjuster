@@ -5,7 +5,7 @@ use tracing::{debug, warn};
 
 use crate::{
     Dollar,
-    account::{Balance, Holding, Portfolio},
+    account::{Balance, Holding},
     provider::Provider,
 };
 
@@ -21,7 +21,7 @@ pub fn provider() -> impl Provider {
 }
 
 impl Provider for ProviderImpl {
-    fn parse_accounts(&self, path: &Path) -> anyhow::Result<Portfolio> {
+    fn parse_portfolio(&self, path: &Path) -> anyhow::Result<Vec<Balance>> {
         let mut csv_reader = csv::ReaderBuilder::new().flexible(true).from_path(path)?;
         let headers = csv_reader.headers()?;
         if headers.get(Columns::AccountNumber as usize) != Some("Account Number")
@@ -69,8 +69,6 @@ impl Provider for ProviderImpl {
             debug!(?acct, ?holding, "adding regular position");
             acct.holdings.push(holding);
         }
-        Ok(Portfolio {
-            accounts: accounts.into_values().collect(),
-        })
+        Ok(accounts.into_values().collect())
     }
 }
