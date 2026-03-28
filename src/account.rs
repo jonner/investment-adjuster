@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{Action, Dollar, Percent};
 
 /// A representation of the balance of a brokerage account
-#[derive(Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Balance {
     /// The unique ID number associated with the account
     pub account_number: String,
@@ -17,7 +17,7 @@ pub struct Balance {
 }
 
 /// A single investment within a brokerage account
-#[derive(Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct Holding {
     /// the string representing the stock or fund (e.g. 'GOOG')
     pub symbol: String,

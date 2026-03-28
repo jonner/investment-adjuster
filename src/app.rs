@@ -1,21 +1,26 @@
 use std::{
     collections::HashMap,
-    io::Write,
+    fs::File,
+    io::{ErrorKind, Read, Write},
     path::{Path, PathBuf},
     process::Stdio,
 };
 
 use anyhow::anyhow;
 use directories::ProjectDirs;
-use driftfix::{account, provider};
-use tracing::{debug, warn};
+use driftfix::{
+    account::{self, Balance},
+    provider,
+};
+use tracing::{debug, trace, warn};
 
 use crate::{
     backup::{self, BackupFile},
-    cli::{self, PlanArgs},
+    cli::{self, DataAddArgs, DataArgs, PlanArgs},
     output,
 };
 
+#[derive(Debug)]
 pub struct App {
     dirs: ProjectDirs,
     config_file: PathBuf,
@@ -43,8 +48,9 @@ impl App {
 
     pub fn run(&self) -> anyhow::Result<()> {
         match &self.args.command {
-            cli::Command::Edit => self.edit_command(),
-            cli::Command::Plan(plan_args) => self.plan_command(plan_args),
+            cli::MainCommands::Edit => self.edit_command(),
+            cli::MainCommands::Plan(plan_args) => self.plan_command(plan_args),
+            cli::MainCommands::Data(data_args) => self.data_command(data_args),
         }
     }
 
@@ -140,9 +146,64 @@ impl App {
         }
         Ok(())
     }
+
+    fn data_command(&self, args: &DataArgs) -> anyhow::Result<()> {
+        match &args.command {
+            cli::DataCommands::Add(data_add_args) => self.data_add_command(data_add_args),
+        }
+    }
+
+    fn data_add_command(&self, args: &DataAddArgs) -> anyhow::Result<()> {
+        let portfolio = provider::load_portfolio(&args.account_balances, args.provider)?;
+        for account in portfolio.accounts {
+            self.import_account_balance(account)?;
+        }
+        Ok(())
+    }
+
+    fn import_account_balance(&self, balance: Balance) -> anyhow::Result<()> {
+        let mut balances = self.load_balances()?;
+        trace!(?balances, "before adding new account balance");
+        balances.retain(|b| b.account_number != balance.account_number);
+        balances.push(balance);
+        trace!(?balances, "after adding new account balance");
+        self.save_balances(&balances)?;
+        Ok(())
+    }
+
+    #[tracing::instrument(ret, level = "trace")]
+    fn save_balances(&self, balances: &[Balance]) -> anyhow::Result<()> {
+        let path = self.dirs.data_dir().join("balances.yml");
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(path)?;
+        let contents = serde_yaml::to_string(balances)?;
+        file.write_all(contents.as_bytes())?;
+        Ok(())
+    }
+
+    #[tracing::instrument(ret, level = "trace")]
+    fn load_balances(&self) -> anyhow::Result<Vec<Balance>> {
+        let path = self.dirs.data_dir().join("balances.yml");
+        trace!(?path);
+        match File::open(path) {
+            Err(e) if e.kind() == ErrorKind::NotFound => Ok(Vec::new()),
+            Err(e) => Err(e.into()),
+            Ok(mut file) => {
+                let mut contents = String::new();
+                file.read_to_string(&mut contents)?;
+                trace!(contents, "read file");
+                serde_yaml::from_str(&contents).map_err(Into::into)
+            }
+        }
+    }
 }
 
+
 fn ensure_dir_exists(dir: &Path) -> anyhow::Result<()> {
+    debug!(?dir, "ensuring dir exists");
     match std::fs::create_dir_all(dir) {
         Err(e) if e.kind() != std::io::ErrorKind::AlreadyExists => {
             Err(anyhow!("Failed to initialize data directory: {e}"))

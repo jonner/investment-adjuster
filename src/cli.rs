@@ -14,7 +14,17 @@ pub(crate) struct Cli {
     )]
     pub config: Option<PathBuf>,
     #[command(subcommand)]
-    pub command: Command,
+    pub command: MainCommands,
+}
+
+#[derive(Subcommand, Debug)]
+pub(crate) enum MainCommands {
+    #[command(about = "Calculate adjustments needed to acheive configured target allocations")]
+    Plan(PlanArgs),
+    #[command(about = "Edit the target allocation configuration file")]
+    Edit,
+    #[command(about = "Manage account data")]
+    Data(DataArgs),
 }
 
 #[derive(Args, Debug)]
@@ -51,10 +61,31 @@ pub(crate) struct PlanArgs {
     pub(crate) account: Option<String>,
 }
 
+#[derive(Args, Debug)]
+pub(crate) struct DataArgs {
+    #[command(subcommand)]
+    pub command: DataCommands,
+}
+
 #[derive(Subcommand, Debug)]
-pub(crate) enum Command {
-    #[command(about = "Calculate adjustments needed to acheive configured target allocations")]
-    Plan(PlanArgs),
-    #[command(about = "Edit the target allocation configuration file")]
-    Edit,
+pub(crate) enum DataCommands {
+    Add(DataAddArgs),
+}
+
+#[derive(Args, Debug)]
+pub(crate) struct DataAddArgs {
+    #[arg(
+        value_name = "ACCOUNT_BALANCES",
+        help = "A file containing account balances"
+    )]
+    pub(crate) account_balances: PathBuf,
+    #[arg(
+        short,
+        long,
+        value_enum,
+        value_name = "PROVIDER_ID",
+        default_value_t = ProviderType::Fidelity,
+        help = "Investment provider associated with account balances file",
+    )]
+    pub(crate) provider: ProviderType,
 }
