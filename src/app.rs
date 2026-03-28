@@ -167,10 +167,7 @@ impl App {
                 println!("{}", account.account_name);
             }
             println!("Account number: {}", account.account_number);
-            println!(
-                "Total balance: {}",
-                output::display_dollar(&account.total_value())
-            );
+            println!("Total balance: {}", account.total_value());
             println!("{table}");
             println!();
         }

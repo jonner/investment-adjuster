@@ -1,41 +1,15 @@
 use driftfix::{Action, Dollar, Percent, account::PositionAdjustment};
 use tabled::{
     Table, Tabled,
+    derive::display,
     settings::{
         Alignment, Color, Style,
         object::{Columns, Rows},
     },
 };
 
-fn display_optional_dollar(val: &Option<Dollar>) -> String {
-    if let Some(val) = val {
-        format!("${val:.2}")
-    } else {
-        "".to_string()
-    }
-}
-
-pub fn display_dollar(val: &Dollar) -> String {
-    format!("${val:.2}")
-}
-
-pub fn display_percentage(val: &Percent) -> String {
-    format!("{val:.1}%")
-}
-
-fn display_optional_percentage(val: &Option<Percent>) -> String {
-    if let Some(val) = val {
-        display_percentage(val)
-    } else {
-        "".to_string()
-    }
-}
-
 #[derive(Debug, Tabled)]
-#[tabled(display(Dollar, "display_dollar"))]
-#[tabled(display(Option<Dollar>, "display_optional_dollar"))]
-#[tabled(display(Percent, "display_percentage"))]
-#[tabled(display(Option<Percent>, "display_optional_percentage"))]
+#[tabled(display(Option, "display::option", ""))]
 struct AllocationTableRow {
     #[tabled(rename = "Symbol")]
     symbol: String,
@@ -56,7 +30,7 @@ struct AllocationTableRow {
 }
 
 pub fn format_adjustments(adjustments: Vec<PositionAdjustment>) -> Table {
-    let total: f32 = adjustments
+    let total: Dollar = adjustments
         .iter()
         .map(|adj| adj.holding.current_value)
         .sum();
@@ -65,7 +39,7 @@ pub fn format_adjustments(adjustments: Vec<PositionAdjustment>) -> Table {
         .map(|adj| AllocationTableRow {
             symbol: adj.holding.symbol.clone(),
             current_value: adj.holding.current_value,
-            current_percentage: adj.holding.current_value / total * 100.0,
+            current_percentage: Percent(adj.holding.current_value / total * 100.0),
             target: Some(adj.target),
             buy: match adj.action {
                 Action::Buy(val) => Some(val),
@@ -75,14 +49,7 @@ pub fn format_adjustments(adjustments: Vec<PositionAdjustment>) -> Table {
                 Action::Sell(val) => Some(val),
                 _ => None,
             },
-            result: Some(
-                adj.holding.current_value
-                    + match adj.action {
-                        Action::Sell(val) => -val,
-                        Action::Buy(val) => val,
-                        _ => 0.0,
-                    },
-            ),
+            result: Some(adj.holding.current_value + &adj.action),
             ignore: adj.ignored,
         })
         .collect();

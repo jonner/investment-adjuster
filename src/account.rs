@@ -85,9 +85,9 @@ pub struct Config {
 impl Config {
     /// Ensure that the target allocations are reasonable
     fn validate(&self) -> anyhow::Result<()> {
-        let total_percent: f32 = self.targets.values().sum();
+        let total_percent: Percent = self.targets.values().sum();
         anyhow::ensure!(
-            total_percent == 100.0,
+            total_percent == Percent(100.0),
             "Target allocations for account {} do not add up to 100%",
             self.account_number
         );
@@ -165,7 +165,7 @@ impl Config {
         }
 
         for (symbol, adj) in adjustments.iter() {
-            if adj.ignored && adj.target != 0.0 {
+            if adj.ignored && adj.target != Percent(0.0) {
                 bail!("Can't ignore symbol '{symbol}': it is specified in the target allocation")
             }
         }
@@ -181,7 +181,7 @@ impl Config {
             })
             .sum::<Dollar>();
         let to_distribute = total_val - self.cash_sweep.minimum;
-        if to_distribute < 0.0 {
+        if to_distribute < Dollar(0.0) {
             bail!(
                 "Not enough value to maintain core position minimum. Sell all investments or transfer more into account."
             );
@@ -201,10 +201,10 @@ impl Config {
                         Action::DoNothing
                     }
                 } else {
-                    let desired_val = to_distribute * (adj.target / 100.0);
+                    let desired_val = to_distribute * adj.target;
                     match desired_val - adj.holding.current_value {
-                        val if val > 0.0 => Action::Buy(val.abs()),
-                        val if val < 0.0 => Action::Sell(val.abs()),
+                        val if val > Dollar(0.0) => Action::Buy(val.abs()),
+                        val if val < Dollar(0.0) => Action::Sell(val.abs()),
                         _ => Action::DoNothing,
                     }
                 };
@@ -232,14 +232,14 @@ impl Config {
     #[doc(hidden)]
     pub fn example_config() -> anyhow::Result<String> {
         let mut targets = HashMap::new();
-        targets.insert("SYMBOL1".to_string(), 75.0_f32);
-        targets.insert("SYMBOL2".to_string(), 25.0_f32);
+        targets.insert("SYMBOL1".to_string(), Percent(75.0));
+        targets.insert("SYMBOL2".to_string(), Percent(25.0));
         let ignored_holdings = vec!["SYMBOL3".to_string()];
         let config = Self {
             account_number: "<ACCOUNT_NUMBER>".to_string(),
             cash_sweep: CashConfig {
                 symbol: "CASH_SYMBOL".to_string(),
-                minimum: 1000.0,
+                minimum: Dollar(1000.0),
             },
             targets,
             ignored_holdings,
@@ -261,13 +261,13 @@ mod tests {
     #[test]
     fn test_config_validate() {
         let mut targets = HashMap::new();
-        targets.insert("A".to_string(), 50.0);
-        targets.insert("B".to_string(), 50.0);
+        targets.insert("A".to_string(), Percent(50.0));
+        targets.insert("B".to_string(), Percent(50.0));
         let config = Config {
             account_number: "123".to_string(),
             cash_sweep: CashConfig {
                 symbol: "CORE".to_string(),
-                minimum: 100.0,
+                minimum: Dollar(100.0),
             },
             targets,
             ignored_holdings: vec![],
@@ -275,13 +275,13 @@ mod tests {
         assert!(config.validate().is_ok());
 
         let mut targets = HashMap::new();
-        targets.insert("A".to_string(), 50.0);
-        targets.insert("B".to_string(), 40.0);
+        targets.insert("A".to_string(), Percent(50.0));
+        targets.insert("B".to_string(), Percent(40.0));
         let config = Config {
             account_number: "123".to_string(),
             cash_sweep: CashConfig {
                 symbol: "CORE".to_string(),
-                minimum: 100.0,
+                minimum: Dollar(100.0),
             },
             targets,
             ignored_holdings: vec![],
@@ -292,13 +292,13 @@ mod tests {
     #[test]
     fn test_adjust_allocations_basic() {
         let mut targets = HashMap::new();
-        targets.insert("A".to_string(), 50.0);
-        targets.insert("B".to_string(), 50.0);
+        targets.insert("A".to_string(), Percent(50.0));
+        targets.insert("B".to_string(), Percent(50.0));
         let config = Config {
             account_number: "123".to_string(),
             cash_sweep: CashConfig {
                 symbol: "CORE".to_string(),
-                minimum: 1000.0,
+                minimum: Dollar(1000.0),
             },
             targets,
             ignored_holdings: vec![],
@@ -310,17 +310,17 @@ mod tests {
             holdings: vec![
                 Holding {
                     symbol: "CORE".to_string(),
-                    current_value: 5000.0,
+                    current_value: Dollar(5000.0),
                     is_cash: true,
                 },
                 Holding {
                     symbol: "A".to_string(),
-                    current_value: 1000.0,
+                    current_value: Dollar(1000.0),
                     is_cash: false,
                 },
                 Holding {
                     symbol: "B".to_string(),
-                    current_value: 1000.0,
+                    current_value: Dollar(1000.0),
                     is_cash: false,
                 },
             ],
@@ -334,7 +334,7 @@ mod tests {
             .find(|a| a.holding.symbol == "CORE")
             .unwrap();
         if let Action::Sell(amount) = core_adj.action {
-            assert_eq!(amount, 4000.0);
+            assert_eq!(amount, Dollar(4000.0));
         } else {
             panic!(
                 "CORE action should be Sell(4000.0), but was {:?}",
@@ -347,7 +347,7 @@ mod tests {
             .find(|a| a.holding.symbol == "A")
             .unwrap();
         if let Action::Buy(amount) = a_adj.action {
-            assert_eq!(amount, 2000.0);
+            assert_eq!(amount, Dollar(2000.0));
         } else {
             panic!("A action should be Buy(2000.0), but was {:?}", a_adj.action);
         }
@@ -357,7 +357,7 @@ mod tests {
             .find(|a| a.holding.symbol == "B")
             .unwrap();
         if let Action::Buy(amount) = b_adj.action {
-            assert_eq!(amount, 2000.0);
+            assert_eq!(amount, Dollar(2000.0));
         } else {
             panic!("B action should be Buy(2000.0), but was {:?}", b_adj.action);
         }
@@ -366,12 +366,12 @@ mod tests {
     #[test]
     fn test_adjust_allocations_with_ignored() {
         let mut targets = HashMap::new();
-        targets.insert("A".to_string(), 100.0);
+        targets.insert("A".to_string(), Percent(100.0));
         let config = Config {
             account_number: "123".to_string(),
             cash_sweep: CashConfig {
                 symbol: "CORE".to_string(),
-                minimum: 1000.0,
+                minimum: Dollar(1000.0),
             },
             targets,
             ignored_holdings: vec!["IGNORED".to_string()],
@@ -383,17 +383,17 @@ mod tests {
             holdings: vec![
                 Holding {
                     symbol: "CORE".to_string(),
-                    current_value: 5000.0,
+                    current_value: Dollar(5000.0),
                     is_cash: true,
                 },
                 Holding {
                     symbol: "A".to_string(),
-                    current_value: 1000.0,
+                    current_value: Dollar(1000.0),
                     is_cash: false,
                 },
                 Holding {
                     symbol: "IGNORED".to_string(),
-                    current_value: 2000.0,
+                    current_value: Dollar(2000.0),
                     is_cash: false,
                 },
             ],
@@ -416,7 +416,7 @@ mod tests {
             .find(|a| a.holding.symbol == "A")
             .unwrap();
         if let Action::Buy(amount) = a_adj.action {
-            assert_eq!(amount, 4000.0);
+            assert_eq!(amount, Dollar(4000.0));
         } else {
             panic!("A action should be Buy(4000.0), but was {:?}", a_adj.action);
         }
@@ -425,7 +425,7 @@ mod tests {
             .find(|a| a.holding.symbol == "CORE")
             .unwrap();
         if let Action::Sell(amount) = core_adj.action {
-            assert_eq!(amount, 4000.0);
+            assert_eq!(amount, Dollar(4000.0));
         } else {
             panic!(
                 "CORE action should be Sell(4000.0), but was {:?}",

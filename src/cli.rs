@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
-use driftfix::provider::ProviderType;
+use driftfix::{Dollar, provider::ProviderType};
 
 #[derive(Parser, Debug)]
 pub(crate) struct Cli {
@@ -42,7 +42,7 @@ pub(crate) struct PlanArgs {
         value_name = "VALUE",
         help = "Amount to keep in cash sweep (overrides target allocation configuration)"
     )]
-    pub(crate) cash_minimum: Option<f32>,
+    pub(crate) cash_minimum: Option<Dollar>,
     #[arg(short, long, help = "Only show targets for the given account id")]
     pub(crate) account: Option<String>,
 }
