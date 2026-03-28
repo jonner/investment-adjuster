@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{Action, Dollar, Percent};
 
 /// A representation of the balance of a brokerage account
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct Balance {
     /// The unique ID number associated with the account

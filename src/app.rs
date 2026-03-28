@@ -188,11 +188,31 @@ impl App {
             &args.account_balances,
             args.provider.unwrap_or(self.config.default_provider),
         )?;
-        self.import_account_balances(portfolio.accounts)?;
+        if portfolio.accounts.is_empty() {
+            println!("No data imported");
+        } else {
+            self.import_account_balances(&portfolio.accounts)?;
+            println!("Imported {} accounts:", portfolio.accounts.len());
+            let max_id = portfolio.accounts.iter().fold(0, |max, acct| {
+                if acct.account_number.len() > max {
+                    acct.account_number.len()
+                } else {
+                    max
+                }
+            });
+            for account in portfolio.accounts {
+                println!(
+                    "{:>width$}: {}",
+                    account.account_number,
+                    account.total_value(),
+                    width = max_id + 2
+                );
+            }
+        }
         Ok(())
     }
 
-    fn import_account_balances(&self, new_balances: Vec<Balance>) -> anyhow::Result<()> {
+    fn import_account_balances(&self, new_balances: &[Balance]) -> anyhow::Result<()> {
         let new_account_ids: Vec<_> = new_balances
             .iter()
             .map(|b| b.account_number.clone())
@@ -200,7 +220,7 @@ impl App {
         let mut existing = self.load_balances()?;
         trace!(?existing, "before adding new account balance");
         existing.retain(|b| !new_account_ids.contains(&b.account_number));
-        existing.extend(new_balances);
+        existing.extend(new_balances.iter().cloned());
         trace!(?existing, "after adding new account balance");
         self.save_balances(&existing)?;
         Ok(())
