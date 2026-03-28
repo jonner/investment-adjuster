@@ -55,16 +55,21 @@ pub(crate) struct DataArgs {
 
 #[derive(Subcommand, Debug)]
 pub(crate) enum DataCommands {
+    #[command(about = "Add or update account balances by importing a portfolio file")]
     Add(DataAddArgs),
+    #[command(about = "List data that has already been imported")]
     List,
+    #[command(about = "Show detailed information about a specific account")]
     Show {
-        #[arg(help = "Show data for the given account ID")]
+        #[arg(help = "an account ID")]
         account: String,
     },
+    #[command(about = "Remove account balance data for a given account")]
     Remove {
-        #[arg(help = "Remove latest balance for the given account ID")]
+        #[arg(help = "an account ID")]
         account: String,
     },
+    #[command(about = "Remove account balance data for all accounts")]
     Reset,
 }
 
