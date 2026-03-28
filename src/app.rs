@@ -65,7 +65,7 @@ impl App {
     fn edit_command(&self) -> anyhow::Result<()> {
         let backup = BackupFile::new(
             self.target_config_file.clone(),
-            Some(account::Config::example_config()?),
+            Some(account::AllocationConfig::example_config()?),
         )?;
         let editor = std::env::var("VISUAL")
             .or_else(|_| std::env::var("EDITOR"))
@@ -82,7 +82,7 @@ impl App {
                     backup.path().display()
                 );
             } else {
-                match account::Config::load_from_file(backup.path()) {
+                match account::AllocationConfig::load_from_file(backup.path()) {
                     Ok(_) => match backup.finish() {
                         Ok(p) => {
                             println!("Updated configuration file '{}'", p.display());
@@ -112,7 +112,8 @@ impl App {
     }
 
     fn plan_command(&self, args: &PlanArgs) -> anyhow::Result<()> {
-        let mut account_configs = account::Config::load_from_file(&self.target_config_file)?;
+        let mut account_configs =
+            account::AllocationConfig::load_from_file(&self.target_config_file)?;
         if let Some(acct) = &args.account {
             account_configs.retain(|acc| acc.account_number == *acct);
             if account_configs.is_empty() {
@@ -135,7 +136,7 @@ impl App {
             bail!("Please import account balance data first. See help for more information.")
         }
         let naccounts = accounts.len();
-        let mut accounts_with_config = Vec::<(account::Balance, account::Config)>::new();
+        let mut accounts_with_config = Vec::<(account::Balance, account::AllocationConfig)>::new();
         for account in accounts {
             if let Some(cfg) = account_configs
                 .iter()

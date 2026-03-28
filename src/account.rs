@@ -7,6 +7,7 @@ use crate::{Action, Dollar, Percent};
 
 /// A representation of the balance of a brokerage account
 #[derive(Serialize, Deserialize, Debug, Default)]
+#[serde(rename_all = "PascalCase")]
 pub struct Balance {
     /// The unique ID number associated with the account
     pub account_number: String,
@@ -69,7 +70,7 @@ pub struct CashConfig {
 /// A definition of the desired allocations for a given brokerage account
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase", deny_unknown_fields)]
-pub struct Config {
+pub struct AllocationConfig {
     /// The account that is being configured
     pub account_number: String,
     /// the desired state of the cash sweep for this account
@@ -82,7 +83,7 @@ pub struct Config {
     pub ignored_holdings: Vec<String>,
 }
 
-impl Config {
+impl AllocationConfig {
     /// Ensure that the target allocations are reasonable
     fn validate(&self) -> anyhow::Result<()> {
         let total_percent: Percent = self.targets.values().sum();
@@ -263,7 +264,7 @@ mod tests {
         let mut targets = HashMap::new();
         targets.insert("A".to_string(), Percent(50.0));
         targets.insert("B".to_string(), Percent(50.0));
-        let config = Config {
+        let config = AllocationConfig {
             account_number: "123".to_string(),
             cash_sweep: CashConfig {
                 symbol: "CORE".to_string(),
@@ -277,7 +278,7 @@ mod tests {
         let mut targets = HashMap::new();
         targets.insert("A".to_string(), Percent(50.0));
         targets.insert("B".to_string(), Percent(40.0));
-        let config = Config {
+        let config = AllocationConfig {
             account_number: "123".to_string(),
             cash_sweep: CashConfig {
                 symbol: "CORE".to_string(),
@@ -294,7 +295,7 @@ mod tests {
         let mut targets = HashMap::new();
         targets.insert("A".to_string(), Percent(50.0));
         targets.insert("B".to_string(), Percent(50.0));
-        let config = Config {
+        let config = AllocationConfig {
             account_number: "123".to_string(),
             cash_sweep: CashConfig {
                 symbol: "CORE".to_string(),
@@ -367,7 +368,7 @@ mod tests {
     fn test_adjust_allocations_with_ignored() {
         let mut targets = HashMap::new();
         targets.insert("A".to_string(), Percent(100.0));
-        let config = Config {
+        let config = AllocationConfig {
             account_number: "123".to_string(),
             cash_sweep: CashConfig {
                 symbol: "CORE".to_string(),
