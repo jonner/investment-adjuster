@@ -114,7 +114,7 @@ impl App {
     fn plan_command(&self, args: &PlanArgs) -> anyhow::Result<()> {
         let mut account_configs = self.load_account_configs()?;
         if let Some(acct) = &args.account {
-            account_configs.retain(|acc| acc.account_number == *acct);
+            account_configs.retain(|acc| acc.account_id == *acct);
             if account_configs.is_empty() {
                 bail!("No allocation targets are configured for that account");
             }
@@ -140,7 +140,7 @@ impl App {
         for account in accounts {
             if let Some(cfg) = account_configs
                 .iter()
-                .find(|t| t.account_number == account.account_number)
+                .find(|t| t.account_id == account.account_id)
             {
                 accounts_with_config.push((account, cfg.clone()));
             }
@@ -159,7 +159,7 @@ impl App {
             if !account.account_name.is_empty() {
                 println!("{}", account.account_name);
             }
-            println!("Account number: {}", account.account_number);
+            println!("Account ID: {}", account.account_id);
             println!("Total balance: {}", account.total_value());
             println!("{table}");
             println!();
@@ -192,8 +192,8 @@ impl App {
             self.import_account_balances(&portfolio)?;
             println!("Imported {} accounts:", portfolio.len());
             let max_id = portfolio.iter().fold(0, |max, acct| {
-                if acct.account_number.len() > max {
-                    acct.account_number.len()
+                if acct.account_id.len() > max {
+                    acct.account_id.len()
                 } else {
                     max
                 }
@@ -201,7 +201,7 @@ impl App {
             for account in portfolio {
                 println!(
                     "{:>width$}: {}",
-                    account.account_number,
+                    account.account_id,
                     account.total_value(),
                     width = max_id + 2
                 );
@@ -211,13 +211,10 @@ impl App {
     }
 
     fn import_account_balances(&self, new_balances: &[Balance]) -> anyhow::Result<()> {
-        let new_account_ids: Vec<_> = new_balances
-            .iter()
-            .map(|b| b.account_number.clone())
-            .collect();
+        let new_account_ids: Vec<_> = new_balances.iter().map(|b| b.account_id.clone()).collect();
         let mut existing = self.load_balances()?;
         trace!(?existing, "before adding new account balance");
-        existing.retain(|b| !new_account_ids.contains(&b.account_number));
+        existing.retain(|b| !new_account_ids.contains(&b.account_id));
         existing.extend(new_balances.iter().cloned());
         trace!(?existing, "after adding new account balance");
         self.save_balances(&existing)?;
@@ -259,10 +256,7 @@ impl App {
 
     fn data_remove_command(&self, account: &str) -> anyhow::Result<()> {
         let mut balances = self.load_balances()?;
-        match balances
-            .iter()
-            .position(|acct| acct.account_number == account)
-        {
+        match balances.iter().position(|acct| acct.account_id == account) {
             Some(pos) => {
                 let balance = balances.remove(pos);
                 self.save_balances(&balances)?;
@@ -310,8 +304,8 @@ impl App {
         sort_accounts(&mut portfolio);
         println!("Data from {} accounts:", portfolio.len());
         let max_id = portfolio.iter().fold(0, |max, acct| {
-            if acct.account_number.len() > max {
-                acct.account_number.len()
+            if acct.account_id.len() > max {
+                acct.account_id.len()
             } else {
                 max
             }
@@ -319,14 +313,14 @@ impl App {
         for account in portfolio {
             let has_config = account_configs
                 .iter()
-                .any(|item| item.account_number == account.account_number);
+                .any(|item| item.account_id == account.account_id);
             println!(
                 "{}{:>width$}: {}",
                 match has_config {
                     true => " *",
                     false => "  ",
                 },
-                account.account_number,
+                account.account_id,
                 account.total_value(),
                 width = max_id + 2
             );
@@ -338,7 +332,7 @@ impl App {
 
     fn data_show_command(&self, account: &str) -> anyhow::Result<()> {
         let mut portfolio = self.load_balances()?;
-        portfolio.retain(|item| item.account_number == account);
+        portfolio.retain(|item| item.account_id == account);
         if portfolio.is_empty() {
             bail!("No data found for account {account}");
         }
@@ -350,7 +344,7 @@ impl App {
         let account_configs = self.load_account_configs()?;
         if let Some(cfg) = account_configs
             .iter()
-            .find(|item| item.account_number == account)
+            .find(|item| item.account_id == account)
         {
             let config_str = serde_yaml::to_string(&cfg)?;
             println!("Current allocation targets:");
@@ -363,7 +357,7 @@ impl App {
 
 fn sort_accounts(portfolio: &mut [Balance]) {
     portfolio.sort_by(|a, b| match a.total_value().partial_cmp(&b.total_value()) {
-        Some(std::cmp::Ordering::Equal) | None => a.account_number.cmp(&b.account_number),
+        Some(std::cmp::Ordering::Equal) | None => a.account_id.cmp(&b.account_id),
         Some(x) => x.reverse(),
     });
 }

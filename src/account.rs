@@ -10,7 +10,7 @@ use crate::{Action, Dollar, Percent};
 #[serde(rename_all = "PascalCase")]
 pub struct Balance {
     /// The unique ID number associated with the account
-    pub account_number: String,
+    pub account_id: String,
     /// A user-friendly name for the account
     pub account_name: String,
     /// A list of investments in the account
@@ -66,7 +66,7 @@ pub struct CashConfig {
 #[serde(rename_all = "PascalCase", deny_unknown_fields)]
 pub struct AllocationConfig {
     /// The account that is being configured
-    pub account_number: String,
+    pub account_id: String,
     /// the desired state of the cash sweep for this account
     pub cash_sweep: CashConfig,
     /// The desired target allocation for specific holdings within this account.
@@ -84,7 +84,7 @@ impl AllocationConfig {
         anyhow::ensure!(
             total_percent == Percent(100.0),
             "Target allocations for account {} do not add up to 100%",
-            self.account_number
+            self.account_id
         );
         Ok(())
     }
@@ -115,14 +115,13 @@ impl AllocationConfig {
             .holdings
             .iter()
             .find(|&pos| {
-                pos.symbol == self.cash_sweep.symbol
-                    && balance.account_number == self.account_number
+                pos.symbol == self.cash_sweep.symbol && balance.account_id == self.account_id
             })
             .ok_or_else(|| {
                 anyhow!(
                     "Failed to find an entry for core position {} for account {}",
                     self.cash_sweep.symbol,
-                    self.account_number
+                    self.account_id
                 )
             })?;
         if !core.is_cash {
@@ -231,7 +230,7 @@ impl AllocationConfig {
         targets.insert("SYMBOL2".to_string(), Percent(25.0));
         let ignored_holdings = vec!["SYMBOL3".to_string()];
         let config = Self {
-            account_number: "<ACCOUNT_NUMBER>".to_string(),
+            account_id: "<ACCOUNT_ID>".to_string(),
             cash_sweep: CashConfig {
                 symbol: "CASH_SYMBOL".to_string(),
                 minimum: Dollar(1000.0),
@@ -259,7 +258,7 @@ mod tests {
         targets.insert("A".to_string(), Percent(50.0));
         targets.insert("B".to_string(), Percent(50.0));
         let config = AllocationConfig {
-            account_number: "123".to_string(),
+            account_id: "123".to_string(),
             cash_sweep: CashConfig {
                 symbol: "CORE".to_string(),
                 minimum: Dollar(100.0),
@@ -273,7 +272,7 @@ mod tests {
         targets.insert("A".to_string(), Percent(50.0));
         targets.insert("B".to_string(), Percent(40.0));
         let config = AllocationConfig {
-            account_number: "123".to_string(),
+            account_id: "123".to_string(),
             cash_sweep: CashConfig {
                 symbol: "CORE".to_string(),
                 minimum: Dollar(100.0),
@@ -290,7 +289,7 @@ mod tests {
         targets.insert("A".to_string(), Percent(50.0));
         targets.insert("B".to_string(), Percent(50.0));
         let config = AllocationConfig {
-            account_number: "123".to_string(),
+            account_id: "123".to_string(),
             cash_sweep: CashConfig {
                 symbol: "CORE".to_string(),
                 minimum: Dollar(1000.0),
@@ -300,7 +299,7 @@ mod tests {
         };
 
         let balance = Balance {
-            account_number: "123".to_string(),
+            account_id: "123".to_string(),
             account_name: "Test Account".to_string(),
             holdings: vec![
                 Holding {
@@ -363,7 +362,7 @@ mod tests {
         let mut targets = HashMap::new();
         targets.insert("A".to_string(), Percent(100.0));
         let config = AllocationConfig {
-            account_number: "123".to_string(),
+            account_id: "123".to_string(),
             cash_sweep: CashConfig {
                 symbol: "CORE".to_string(),
                 minimum: Dollar(1000.0),
@@ -373,7 +372,7 @@ mod tests {
         };
 
         let balance = Balance {
-            account_number: "123".to_string(),
+            account_id: "123".to_string(),
             account_name: "Test Account".to_string(),
             holdings: vec![
                 Holding {

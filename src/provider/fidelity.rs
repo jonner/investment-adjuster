@@ -42,19 +42,17 @@ impl Provider for ProviderImpl {
                 debug!(?row, "Row doesn't have enough fields to be a position");
                 break;
             }
-            let Some(account_number) = row.get(Columns::AccountNumber as usize) else {
+            let Some(account_id) = row.get(Columns::AccountNumber as usize) else {
                 bail!("failed to get account number for row");
             };
             let Some(account_name) = row.get(Columns::AccountName as usize) else {
                 bail!("failed to get account name for row");
             };
-            let acct = accounts
-                .entry(account_number.to_string())
-                .or_insert(Balance {
-                    account_number: account_number.to_string(),
-                    account_name: account_name.to_string(),
-                    ..Default::default()
-                });
+            let acct = accounts.entry(account_id.to_string()).or_insert(Balance {
+                account_id: account_id.to_string(),
+                account_name: account_name.to_string(),
+                ..Default::default()
+            });
             let symbol = row
                 .get(Columns::Symbol as usize)
                 .ok_or_else(|| anyhow!("Failed to get symbol"))?;
@@ -69,7 +67,7 @@ impl Provider for ProviderImpl {
                 } else {
                     warn!(
                         "Account '{}' has ${current_value} in pending activity but cannot find core position.",
-                        acct.account_number
+                        acct.account_id
                     );
                 }
             } else {

@@ -13,7 +13,7 @@ fn parse_fidelity() {
 
     let individual = portfolio
         .iter()
-        .find(|a| a.account_number == "Z12345678")
+        .find(|a| a.account_id == "Z12345678")
         .unwrap();
     assert_eq!(individual.holdings.len(), 2);
     assert_eq!(individual.holdings[0].symbol, "AAPL");
@@ -34,7 +34,7 @@ fn parse_vanguard() {
 
     let acct1 = portfolio
         .iter()
-        .find(|a| a.account_number == "12345678")
+        .find(|a| a.account_id == "12345678")
         .unwrap();
     assert_eq!(acct1.holdings.len(), 3);
     let vmfxx = acct1.holdings.iter().find(|p| p.symbol == "VMFXX").unwrap();

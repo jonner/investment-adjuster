@@ -44,15 +44,13 @@ impl Provider for ProviderImpl {
                 );
                 break;
             }
-            let Some(account_number) = row.get(Columns::AccountNumber as usize) else {
+            let Some(account_id) = row.get(Columns::AccountNumber as usize) else {
                 bail!("failed to get account number for row");
             };
-            let acct = accounts
-                .entry(account_number.to_string())
-                .or_insert(Balance {
-                    account_number: account_number.to_string(),
-                    ..Default::default()
-                });
+            let acct = accounts.entry(account_id.to_string()).or_insert(Balance {
+                account_id: account_id.to_string(),
+                ..Default::default()
+            });
             let symbol = row
                 .get(Columns::Symbol as usize)
                 .ok_or_else(|| anyhow!("Failed to get symbol"))?;
