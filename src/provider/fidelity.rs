@@ -24,16 +24,10 @@ struct ProviderImpl;
 
 impl Provider for ProviderImpl {
     fn parse_portfolio(&self, reader: &mut dyn Read) -> anyhow::Result<Vec<Balance>> {
-        let mut csv_reader = csv::ReaderBuilder::new().flexible(true).from_reader(reader);
-        let headers = csv_reader.headers()?;
-        if headers.get(Columns::AccountNumber as usize) != Some("AccountNumber")
-            && headers.get(Columns::AccountName as usize) != Some("Account Name")
-            && headers.get(Columns::Symbol as usize) != Some("Symbol")
-            && headers.get(Columns::CurrentValue as usize) != Some("Current Value")
-        {
-            warn!(?headers, "Unexpected headers");
-            bail!("Unexpected csv file format");
+        if !self.detect(reader)? {
+            bail!("Portfolio file does not appear to be a valid Fidelity CSV file.");
         }
+        let mut csv_reader = csv::ReaderBuilder::new().flexible(true).from_reader(reader);
         let mut accounts = HashMap::<String, Balance>::new();
         for row in csv_reader.records() {
             let row = row?;
@@ -81,5 +75,30 @@ impl Provider for ProviderImpl {
             }
         }
         Ok(accounts.into_values().collect())
+    }
+
+    fn detect(&self, reader: &mut dyn Read) -> anyhow::Result<bool> {
+        let mut csv_reader = csv::ReaderBuilder::new().flexible(true).from_reader(reader);
+        let headers = csv_reader.headers()?;
+        let mut iter = headers.iter();
+
+        let valid = iter.next() == Some("Account Number")
+            && iter.next() == Some("Account Name")
+            && iter.next() == Some("Symbol")
+            && iter.next() == Some("Description")
+            && iter.next() == Some("Quantity")
+            && iter.next() == Some("Last Price")
+            && iter.next() == Some("Last Price Change")
+            && iter.next() == Some("Current Value")
+            && iter.next() == Some("Today's Gain/Loss Dollar")
+            && iter.next() == Some("Today's Gain/Loss Percent")
+            && iter.next() == Some("Total Gain/Loss Dollar")
+            && iter.next() == Some("Total Gain/Loss Percent")
+            && iter.next() == Some("Percent Of Account")
+            && iter.next() == Some("Cost Basis Total")
+            && iter.next() == Some("Average Cost Basis")
+            && iter.next() == Some("Type")
+            && iter.next().is_none();
+        Ok(valid)
     }
 }

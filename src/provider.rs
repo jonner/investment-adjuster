@@ -32,4 +32,5 @@ pub fn load_portfolio(reader: &mut dyn Read, ptype: ProviderType) -> anyhow::Res
 /// a trait that must be implemented by providers in order to be supported by this tool
 trait Provider {
     fn parse_portfolio(&self, reader: &mut dyn Read) -> anyhow::Result<Vec<Balance>>;
+    fn detect(&self, reader: &mut dyn Read) -> anyhow::Result<bool>;
 }

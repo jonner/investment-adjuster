@@ -1,7 +1,7 @@
 use std::{collections::HashMap, io::Read};
 
 use anyhow::{anyhow, bail};
-use tracing::{debug, warn};
+use tracing::debug;
 
 use crate::{
     Dollar,
@@ -22,15 +22,10 @@ pub fn provider() -> impl Provider {
 
 impl Provider for ProviderImpl {
     fn parse_portfolio(&self, reader: &mut dyn Read) -> anyhow::Result<Vec<Balance>> {
-        let mut csv_reader = csv::ReaderBuilder::new().flexible(true).from_reader(reader);
-        let headers = csv_reader.headers()?;
-        if headers.get(Columns::AccountNumber as usize) != Some("Account Number")
-            && headers.get(Columns::Symbol as usize) != Some("Symbol")
-            && headers.get(Columns::TotalValue as usize) != Some("Total Value")
-        {
-            warn!(?headers, "Unexpected headers");
-            bail!("Unexpected csv file format");
+        if !self.detect(reader)? {
+            bail!("Portfolio file does not appear to be a valid Vanguard CSV file.");
         }
+        let mut csv_reader = csv::ReaderBuilder::new().flexible(true).from_reader(reader);
         let mut accounts = HashMap::<String, Balance>::new();
         for row in csv_reader.records() {
             let row = row?;
@@ -68,5 +63,20 @@ impl Provider for ProviderImpl {
             acct.holdings.push(holding);
         }
         Ok(accounts.into_values().collect())
+    }
+
+    fn detect(&self, reader: &mut dyn Read) -> anyhow::Result<bool> {
+        let mut csv_reader = csv::ReaderBuilder::new().flexible(true).from_reader(reader);
+        let headers = csv_reader.headers()?;
+        let mut iter = headers.iter();
+
+        let valid = iter.next() == Some("Account Number")
+            && iter.next() == Some("Investment Name")
+            && iter.next() == Some("Symbol")
+            && iter.next() == Some("Shares")
+            && iter.next() == Some("Share Price")
+            && iter.next() == Some("Total Value")
+            && iter.next().is_none();
+        Ok(valid)
     }
 }
