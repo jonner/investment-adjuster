@@ -182,8 +182,13 @@ impl App {
     }
 
     fn data_add_command(&self, args: &DataAddArgs) -> anyhow::Result<()> {
+        let mut f: Box<dyn Read> = if &args.account_balances == "-" {
+            Box::new(std::io::stdin())
+        } else {
+            Box::new(File::open(&args.account_balances)?)
+        };
         let portfolio = provider::load_portfolio(
-            &args.account_balances,
+            &mut f,
             args.provider.unwrap_or(self.config.default_provider),
         )?;
         if portfolio.is_empty() {

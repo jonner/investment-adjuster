@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::Path};
+use std::{collections::HashMap, io::Read};
 
 use anyhow::{anyhow, bail};
 use tracing::{debug, warn};
@@ -21,8 +21,8 @@ pub fn provider() -> impl Provider {
 }
 
 impl Provider for ProviderImpl {
-    fn parse_portfolio(&self, path: &Path) -> anyhow::Result<Vec<Balance>> {
-        let mut csv_reader = csv::ReaderBuilder::new().flexible(true).from_path(path)?;
+    fn parse_portfolio(&self, reader: &mut dyn Read) -> anyhow::Result<Vec<Balance>> {
+        let mut csv_reader = csv::ReaderBuilder::new().flexible(true).from_reader(reader);
         let headers = csv_reader.headers()?;
         if headers.get(Columns::AccountNumber as usize) != Some("Account Number")
             && headers.get(Columns::Symbol as usize) != Some("Symbol")
