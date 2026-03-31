@@ -117,26 +117,28 @@ impl AllocationConfig {
             self.account_id == balance.account_id,
             "The target configuration doesn't apply to this account"
         );
-        let core = balance
+        let cash_fallback = Holding {
+            symbol: self.cash_sweep.symbol.clone(),
+            current_value: Dollar(0.0),
+            is_cash: true,
+        };
+        let cash_sweep = balance
             .holdings
             .iter()
             .find(|&pos| pos.symbol == self.cash_sweep.symbol)
-            .ok_or_else(|| {
-                anyhow!(
-                    "Failed to find an entry for core position {} for account {}",
-                    self.cash_sweep.symbol,
-                    self.account_id
-                )
-            })?;
-        if !core.is_cash {
+            .unwrap_or(&cash_fallback);
+        if !cash_sweep.is_cash {
             bail!(
                 "Found position {} but it was not marked as the core position in the provided data file",
                 self.cash_sweep.symbol
             )
         }
-        if self.targets.contains_key(&core.symbol) {
+        if self.targets.contains_key(&cash_sweep.symbol) {
             bail!("Core position cannot be in target list");
         }
+
+        // make sure the output contains information about all targets in the
+        // allocation configuration
         let mut adjustments: HashMap<String, PositionAdjustment> = HashMap::new();
         for (target_symbol, &target_percent) in self.targets.iter() {
             adjustments
@@ -151,6 +153,9 @@ impl AllocationConfig {
                     ..Default::default()
                 });
         }
+
+        // make sure the output contains information about all holdings in the
+        // account balance
         for holding in balance.holdings.iter() {
             adjustments
                 .entry(holding.symbol.to_owned())
@@ -161,6 +166,16 @@ impl AllocationConfig {
                     ..Default::default()
                 });
         }
+
+        // make sure the output contains a cash sweep
+        adjustments
+            .entry(cash_sweep.symbol.to_owned())
+            .and_modify(|e| e.holding.current_value = cash_sweep.current_value)
+            .or_insert(PositionAdjustment {
+                holding: cash_sweep.clone(),
+                ignored: self.ignored_holdings.contains(&cash_sweep.symbol),
+                ..Default::default()
+            });
 
         for (symbol, adj) in adjustments.iter() {
             if adj.ignored && adj.target != Percent(0.0) {
@@ -181,16 +196,26 @@ impl AllocationConfig {
         let to_distribute = total_val - self.cash_sweep.minimum;
         if to_distribute < Dollar(0.0) {
             bail!(
-                "Not enough value to maintain core position minimum. Sell all investments or transfer more into account."
+                "Not enough value to maintain minimum cash amount. Sell all investments or transfer more into account."
             );
         }
+
+        // make sure there is only a single cash holding in the list
+        anyhow::ensure!(
+            adjustments
+                .iter()
+                .filter(|(_k, v)| v.holding.is_cash)
+                .count()
+                == 1,
+            "Account should contain exactly 1 cash holding"
+        );
 
         let mut adjustments: Vec<_> = adjustments
             .into_values()
             .map(|mut adj| {
                 let action = if adj.ignored {
                     Action::DoNothing
-                } else if adj.holding.symbol == self.cash_sweep.symbol {
+                } else if adj.holding.is_cash {
                     if adj.holding.current_value > self.cash_sweep.minimum {
                         Action::Sell(adj.holding.current_value - self.cash_sweep.minimum)
                     } else if adj.holding.current_value < self.cash_sweep.minimum {
