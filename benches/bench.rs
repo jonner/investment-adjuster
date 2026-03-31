@@ -26,5 +26,5 @@ X12345678,Individual,VXUS,VANGUARD TOTAL INTERNATIONAL STOCK INDEX FUND,143.709,
 "Date downloaded Nov-19-2025 12:11 p.m ET""#;
 
     let mut r = Cursor::new(testdata);
-    provider::load_portfolio(&mut r, ProviderType::Fidelity).expect("Failed to parse");
+    provider::load_portfolio(&mut r, Some(ProviderType::Fidelity)).expect("Failed to parse");
 }

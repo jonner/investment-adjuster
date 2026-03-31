@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io::Read};
+use std::{collections::HashMap, io::BufRead};
 
 use anyhow::{anyhow, bail};
 use tracing::debug;
@@ -8,6 +8,15 @@ use crate::{
     account::{Balance, Holding},
     provider::Provider,
 };
+
+const EXPECTED_HEADERS: &[&str] = &[
+    "Account Number",
+    "Investment Name",
+    "Symbol",
+    "Shares",
+    "Share Price",
+    "Total Value",
+];
 
 pub enum Columns {
     AccountNumber = 0,
@@ -21,8 +30,9 @@ pub fn provider() -> impl Provider {
 }
 
 impl Provider for ProviderImpl {
-    fn parse_portfolio(&self, reader: &mut dyn Read) -> anyhow::Result<Vec<Balance>> {
-        if !self.detect(reader)? {
+    fn parse_portfolio(&self, reader: &mut dyn BufRead) -> anyhow::Result<Vec<Balance>> {
+        let sample = reader.fill_buf()?;
+        if !self.detect(sample)? {
             bail!("Portfolio file does not appear to be a valid Vanguard CSV file.");
         }
         let mut csv_reader = csv::ReaderBuilder::new().flexible(true).from_reader(reader);
@@ -65,18 +75,19 @@ impl Provider for ProviderImpl {
         Ok(accounts.into_values().collect())
     }
 
-    fn detect(&self, reader: &mut dyn Read) -> anyhow::Result<bool> {
-        let mut csv_reader = csv::ReaderBuilder::new().flexible(true).from_reader(reader);
+    fn detect(&self, sample: &[u8]) -> anyhow::Result<bool> {
+        let mut csv_reader = csv::ReaderBuilder::new().flexible(true).from_reader(sample);
         let headers = csv_reader.headers()?;
-        let mut iter = headers.iter();
+        let iter = headers.iter();
+        let expected_iter = EXPECTED_HEADERS.iter().copied();
+        debug!(?headers);
 
-        let valid = iter.next() == Some("Account Number")
-            && iter.next() == Some("Investment Name")
-            && iter.next() == Some("Symbol")
-            && iter.next() == Some("Shares")
-            && iter.next() == Some("Share Price")
-            && iter.next() == Some("Total Value")
-            && iter.next().is_none();
-        Ok(valid)
+        for (got, expected) in iter.zip(expected_iter) {
+            if got != expected {
+                debug!("Expected {expected}, got {got}");
+                return Ok(false);
+            }
+        }
+        Ok(true)
     }
 }

@@ -22,7 +22,7 @@ use crate::{
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 struct Config {
-    default_provider: ProviderType,
+    default_provider: Option<ProviderType>,
 }
 
 #[derive(Debug)]
@@ -187,10 +187,8 @@ impl App {
         } else {
             Box::new(File::open(&args.account_balances)?)
         };
-        let portfolio = provider::load_portfolio(
-            &mut f,
-            args.provider.unwrap_or(self.config.default_provider),
-        )?;
+        let portfolio =
+            provider::load_portfolio(&mut f, args.provider.or(self.config.default_provider))?;
         if portfolio.is_empty() {
             println!("No data imported");
         } else {
