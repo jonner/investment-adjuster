@@ -163,8 +163,9 @@ impl App {
             let adjustments = config.adjust_allocations(&account)?;
             let table = output::format_adjustments(adjustments);
 
-            if !account.account_name.is_empty() {
-                println!("{}", account.account_name);
+            let name = config.nickname.as_ref().unwrap_or(&account.account_name);
+            if !name.is_empty() {
+                println!("{name}");
             }
             println!("Account ID: {}", account.account_id);
             println!("Total balance: {}", account.total_value());

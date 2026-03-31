@@ -67,6 +67,8 @@ pub struct CashConfig {
 pub struct AllocationConfig {
     /// The account that is being configured
     pub account_id: String,
+    /// A nickname for the account
+    pub nickname: Option<String>,
     /// the desired state of the cash sweep for this account
     pub cash_sweep: CashConfig,
     /// The desired target allocation for specific holdings within this account.
@@ -237,6 +239,7 @@ impl AllocationConfig {
             },
             targets,
             ignored_holdings,
+            nickname: None,
         };
         let s = serde_yaml::to_string(&vec![config])?;
         let comment = r#"# This is an example configuration.
@@ -265,6 +268,7 @@ mod tests {
             },
             targets,
             ignored_holdings: vec![],
+            nickname: None,
         };
         assert!(config.validate().is_ok());
 
@@ -279,6 +283,7 @@ mod tests {
             },
             targets,
             ignored_holdings: vec![],
+            nickname: None,
         };
         assert!(config.validate().is_err());
     }
@@ -296,6 +301,7 @@ mod tests {
             },
             targets,
             ignored_holdings: vec![],
+            nickname: None,
         };
 
         let balance = Balance {
@@ -369,6 +375,7 @@ mod tests {
             },
             targets,
             ignored_holdings: vec!["IGNORED".to_string()],
+            nickname: None,
         };
 
         let balance = Balance {
