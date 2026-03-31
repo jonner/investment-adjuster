@@ -25,6 +25,8 @@ pub(crate) enum MainCommands {
     Plan(PlanArgs),
     #[command(about = "Manage account balance data")]
     Data(DataArgs),
+    #[command(about = "Generate shell autocompletion script")]
+    Completion { shell: clap_complete::Shell },
 }
 
 #[derive(Args, Debug)]

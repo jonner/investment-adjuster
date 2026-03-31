@@ -1,11 +1,12 @@
 use std::{
     fs::File,
-    io::{ErrorKind, Read, Write},
+    io::{ErrorKind, Read, Write, stdout},
     path::{Path, PathBuf},
     process::Stdio,
 };
 
 use anyhow::{anyhow, bail};
+use clap::CommandFactory;
 use directories::ProjectDirs;
 use driftfix::{
     account::{self, Balance},
@@ -16,7 +17,7 @@ use tracing::{debug, trace, warn};
 
 use crate::{
     backup::{self, BackupFile},
-    cli::{self, DataAddArgs, DataArgs, PlanArgs},
+    cli::{self, Cli, DataAddArgs, DataArgs, PlanArgs},
     output,
 };
 
@@ -59,6 +60,12 @@ impl App {
             cli::MainCommands::Configure => self.edit_command(),
             cli::MainCommands::Plan(plan_args) => self.plan_command(plan_args),
             cli::MainCommands::Data(data_args) => self.data_command(data_args),
+            cli::MainCommands::Completion { shell } => {
+                let mut cmd = Cli::command();
+                let bin_name = cmd.get_name().to_string();
+                clap_complete::generate(*shell, &mut cmd, bin_name, &mut stdout());
+                Ok(())
+            }
         }
     }
 
@@ -97,7 +104,7 @@ impl App {
                     Err(e) => {
                         println!("Failed to validate configuration file: {e}");
                         print!("Would you like to try again? [y/N] ");
-                        std::io::stdout().flush().unwrap();
+                        stdout().flush().unwrap();
                         let mut input = String::new();
                         if std::io::stdin().read_line(&mut input).is_ok() {
                             let line = input.trim().to_lowercase();
