@@ -113,12 +113,14 @@ impl AllocationConfig {
     /// Compare this configuration with the given `balance` and calculate what adjustments need to be
     /// made in order to align the balance with the desired target allocations
     pub fn adjust_allocations(&self, balance: &Balance) -> anyhow::Result<Vec<PositionAdjustment>> {
+        anyhow::ensure!(
+            self.account_id == balance.account_id,
+            "The target configuration doesn't apply to this account"
+        );
         let core = balance
             .holdings
             .iter()
-            .find(|&pos| {
-                pos.symbol == self.cash_sweep.symbol && balance.account_id == self.account_id
-            })
+            .find(|&pos| pos.symbol == self.cash_sweep.symbol)
             .ok_or_else(|| {
                 anyhow!(
                     "Failed to find an entry for core position {} for account {}",
