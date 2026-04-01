@@ -2,6 +2,7 @@ use std::{collections::HashMap, io::ErrorKind, path::Path};
 
 use anyhow::{Context, anyhow, bail};
 use serde::{Deserialize, Serialize};
+use tracing::debug;
 
 use crate::{Action, Dollar, Percent};
 
@@ -134,10 +135,25 @@ impl AllocationConfig {
             .iter()
             .find(|&pos| Some(&pos.symbol) == self.cash_sweep.as_ref().map(|s| &s.symbol))
             .or(cash_fallback.as_ref());
+        debug!(?cash_sweep, ?balance);
+
+        // make sure the output contains information about all holdings in the
+        // account balance
+        let mut adjustments: HashMap<String, PositionAdjustment> = HashMap::new();
+        for holding in balance.holdings.iter() {
+            let ignored = self.ignored_holdings.contains(&holding.symbol);
+            adjustments.insert(
+                holding.symbol.clone(),
+                PositionAdjustment {
+                    holding: holding.clone(),
+                    ignored,
+                    ..Default::default()
+                },
+            );
+        }
 
         // make sure the output contains information about all targets in the
         // allocation configuration
-        let mut adjustments: HashMap<String, PositionAdjustment> = HashMap::new();
         for (target_symbol, &target_percent) in self.targets.iter() {
             adjustments
                 .entry(target_symbol.clone())
@@ -148,19 +164,6 @@ impl AllocationConfig {
                         symbol: target_symbol.clone(),
                         ..Default::default()
                     },
-                    ..Default::default()
-                });
-        }
-
-        // make sure the output contains information about all holdings in the
-        // account balance
-        for holding in balance.holdings.iter() {
-            adjustments
-                .entry(holding.symbol.to_owned())
-                .and_modify(|e| e.holding.current_value = holding.current_value)
-                .or_insert(PositionAdjustment {
-                    holding: holding.clone(),
-                    ignored: self.ignored_holdings.contains(&holding.symbol),
                     ..Default::default()
                 });
         }
@@ -193,12 +196,14 @@ impl AllocationConfig {
                 }
             })
             .sum::<Dollar>();
-        let to_distribute = total_val - self.cash_minimum();
-        if to_distribute < Dollar(0.0) {
-            bail!(
-                "Not enough value to maintain minimum cash amount. Sell all investments or transfer more into account."
-            );
-        }
+        let cash_target = adjustments
+            .values()
+            .find(|v| v.holding.is_cash)
+            .map(|adj| adj.target);
+        let cash_desired = self
+            .cash_minimum()
+            .max(cash_target.map(|t| total_val * t).unwrap_or_default());
+        debug!(?cash_target, ?cash_desired);
 
         // make sure there is only a single cash holding in the list
         anyhow::ensure!(
@@ -215,16 +220,36 @@ impl AllocationConfig {
             .map(|mut adj| {
                 let action = if adj.ignored {
                     Action::DoNothing
-                } else if adj.holding.is_cash {
-                    if adj.holding.current_value > self.cash_minimum() {
-                        Action::Sell(adj.holding.current_value - self.cash_minimum())
-                    } else if adj.holding.current_value < self.cash_minimum() {
-                        Action::Buy(self.cash_minimum() - adj.holding.current_value)
-                    } else {
-                        Action::DoNothing
-                    }
                 } else {
-                    let desired_val = to_distribute * adj.target;
+                    let mut desired_val = total_val * adj.target;
+                    debug!(?desired_val, ?adj);
+                    if adj.holding.is_cash {
+                        desired_val = cash_desired;
+                        debug!(?desired_val, "Setting cash val");
+                    } else {
+                        // if the minimum cash position was enforced, that
+                        // leaves less to allocate for other holdings, so we
+                        // allocate the rest of the holdings proportionally to
+                        // their targets, even if they can't be acheived
+                        if cash_desired == self.cash_minimum() {
+                            let remainder = total_val - cash_desired;
+                            let noncash_pct = Percent(100.0) - cash_target.unwrap_or_default();
+                            let pct = adj.target / noncash_pct;
+                            desired_val = remainder * pct;
+                            debug!(
+                                ?remainder,
+                                ?noncash_pct,
+                                ?pct,
+                                ?desired_val,
+                                ?adj.target,
+                                "Setting adjusted non-cash val"
+                            );
+                        } else {
+                            desired_val = total_val * adj.target;
+                            debug!(?desired_val, "Setting non-cash val");
+                        }
+                    }
+                    debug!(?desired_val, ?adj.holding.current_value, "setting action");
                     match desired_val - adj.holding.current_value {
                         val if val > Dollar(0.0) => Action::Buy(val.abs()),
                         val if val < Dollar(0.0) => Action::Sell(val.abs()),

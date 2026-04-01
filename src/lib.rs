@@ -99,6 +99,10 @@ impl Dollar {
     fn abs(&self) -> Self {
         Self(self.0.abs())
     }
+
+    fn max(&self, other: Self) -> Self {
+        Self(self.0.max(other.0))
+    }
 }
 
 /// A type that represents percentage values
@@ -113,13 +117,30 @@ impl Deref for Percent {
     }
 }
 
+impl Sub for Percent {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(self.0 - rhs.0)
+    }
+}
+
+impl Mul for Percent {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self(100.0 * (self.0 / 100.0) * (rhs.0 / 100.0))
+    }
+}
+
 impl Div for Percent {
     type Output = Self;
 
     fn div(self, rhs: Self) -> Self::Output {
-        Self(self.0 / rhs.0)
+        Self(100.0 * (self.0 / 100.0) / (rhs.0 / 100.0))
     }
 }
+
 impl Display for Percent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:.1}%", self.0)
