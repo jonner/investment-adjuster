@@ -1,4 +1,7 @@
-use driftfix::{Action, Dollar, Percent, account::PositionAdjustment};
+use driftfix::{
+    Action, Dollar, Percent,
+    account::{Holding, PositionAdjustment},
+};
 use tabled::{
     Table, Tabled,
     derive::display,
@@ -29,6 +32,13 @@ struct AllocationTableRow {
     ignore: bool,
 }
 
+fn holding_display_name(holding: &Holding) -> String {
+    (match holding.is_cash {
+        true => String::from("*"),
+        false => String::new(),
+    } + &holding.symbol)
+}
+
 pub fn format_adjustments(adjustments: Vec<PositionAdjustment>) -> Table {
     let total: Dollar = adjustments
         .iter()
@@ -37,7 +47,7 @@ pub fn format_adjustments(adjustments: Vec<PositionAdjustment>) -> Table {
     let rows: Vec<AllocationTableRow> = adjustments
         .iter()
         .map(|adj| AllocationTableRow {
-            symbol: adj.holding.symbol.clone(),
+            symbol: holding_display_name(&adj.holding),
             current_value: adj.holding.current_value,
             current_percentage: Percent(adj.holding.current_value / total * 100.0),
             target: Some(adj.target),
