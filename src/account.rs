@@ -70,7 +70,8 @@ pub struct AllocationConfig {
     /// A nickname for the account
     pub nickname: Option<String>,
     /// the desired state of the cash sweep for this account
-    pub cash_sweep: CashConfig,
+    #[serde(default)]
+    pub cash_sweep: Option<CashConfig>,
     /// The desired target allocation for specific holdings within this account.
     /// The percentages for all targets should add up to exactly 100%
     pub targets: HashMap<String, Percent>,
@@ -110,6 +111,12 @@ impl AllocationConfig {
             .collect()
     }
 
+    fn cash_minimum(&self) -> Dollar {
+        self.cash_sweep
+            .as_ref()
+            .map(|cash| cash.minimum)
+            .unwrap_or_default()
+    }
     /// Compare this configuration with the given `balance` and calculate what adjustments need to be
     /// made in order to align the balance with the desired target allocations
     pub fn adjust_allocations(&self, balance: &Balance) -> anyhow::Result<Vec<PositionAdjustment>> {
@@ -117,25 +124,16 @@ impl AllocationConfig {
             self.account_id == balance.account_id,
             "The target configuration doesn't apply to this account"
         );
-        let cash_fallback = Holding {
-            symbol: self.cash_sweep.symbol.clone(),
+        let cash_fallback = self.cash_sweep.as_ref().map(|sweep| Holding {
+            symbol: sweep.symbol.clone(),
             current_value: Dollar(0.0),
             is_cash: true,
-        };
+        });
         let cash_sweep = balance
             .holdings
             .iter()
-            .find(|&pos| pos.symbol == self.cash_sweep.symbol)
-            .unwrap_or(&cash_fallback);
-        if !cash_sweep.is_cash {
-            bail!(
-                "Found position {} but it was not marked as the core position in the provided data file",
-                self.cash_sweep.symbol
-            )
-        }
-        if self.targets.contains_key(&cash_sweep.symbol) {
-            bail!("Core position cannot be in target list");
-        }
+            .find(|&pos| Some(&pos.symbol) == self.cash_sweep.as_ref().map(|s| &s.symbol))
+            .or(cash_fallback.as_ref());
 
         // make sure the output contains information about all targets in the
         // allocation configuration
@@ -167,15 +165,17 @@ impl AllocationConfig {
                 });
         }
 
-        // make sure the output contains a cash sweep
-        adjustments
-            .entry(cash_sweep.symbol.to_owned())
-            .and_modify(|e| e.holding.current_value = cash_sweep.current_value)
-            .or_insert(PositionAdjustment {
-                holding: cash_sweep.clone(),
-                ignored: self.ignored_holdings.contains(&cash_sweep.symbol),
-                ..Default::default()
-            });
+        if let Some(cash_sweep) = cash_sweep {
+            // make sure the output contains a cash sweep if a cash minimum is specified
+            adjustments
+                .entry(cash_sweep.symbol.to_owned())
+                .and_modify(|e| e.holding.current_value = cash_sweep.current_value)
+                .or_insert(PositionAdjustment {
+                    holding: cash_sweep.clone(),
+                    ignored: self.ignored_holdings.contains(&cash_sweep.symbol),
+                    ..Default::default()
+                });
+        }
 
         for (symbol, adj) in adjustments.iter() {
             if adj.ignored && adj.target != Percent(0.0) {
@@ -193,7 +193,7 @@ impl AllocationConfig {
                 }
             })
             .sum::<Dollar>();
-        let to_distribute = total_val - self.cash_sweep.minimum;
+        let to_distribute = total_val - self.cash_minimum();
         if to_distribute < Dollar(0.0) {
             bail!(
                 "Not enough value to maintain minimum cash amount. Sell all investments or transfer more into account."
@@ -206,8 +206,8 @@ impl AllocationConfig {
                 .iter()
                 .filter(|(_k, v)| v.holding.is_cash)
                 .count()
-                == 1,
-            "Account should contain exactly 1 cash holding"
+                <= 1,
+            "Account should contain at most 1 cash holding"
         );
 
         let mut adjustments: Vec<_> = adjustments
@@ -216,10 +216,10 @@ impl AllocationConfig {
                 let action = if adj.ignored {
                     Action::DoNothing
                 } else if adj.holding.is_cash {
-                    if adj.holding.current_value > self.cash_sweep.minimum {
-                        Action::Sell(adj.holding.current_value - self.cash_sweep.minimum)
-                    } else if adj.holding.current_value < self.cash_sweep.minimum {
-                        Action::Buy(self.cash_sweep.minimum - adj.holding.current_value)
+                    if adj.holding.current_value > self.cash_minimum() {
+                        Action::Sell(adj.holding.current_value - self.cash_minimum())
+                    } else if adj.holding.current_value < self.cash_minimum() {
+                        Action::Buy(self.cash_minimum() - adj.holding.current_value)
                     } else {
                         Action::DoNothing
                     }
@@ -260,10 +260,10 @@ impl AllocationConfig {
         let ignored_holdings = vec!["SYMBOL3".to_string()];
         let config = Self {
             account_id: "<ACCOUNT_ID>".to_string(),
-            cash_sweep: CashConfig {
+            cash_sweep: Some(CashConfig {
                 symbol: "CASH_SYMBOL".to_string(),
                 minimum: Dollar(1000.0),
-            },
+            }),
             targets,
             ignored_holdings,
             nickname: None,
@@ -289,10 +289,10 @@ mod tests {
         targets.insert("B".to_string(), Percent(50.0));
         let config = AllocationConfig {
             account_id: "123".to_string(),
-            cash_sweep: CashConfig {
+            cash_sweep: Some(CashConfig {
                 symbol: "CORE".to_string(),
                 minimum: Dollar(100.0),
-            },
+            }),
             targets,
             ignored_holdings: vec![],
             nickname: None,
@@ -304,10 +304,10 @@ mod tests {
         targets.insert("B".to_string(), Percent(40.0));
         let config = AllocationConfig {
             account_id: "123".to_string(),
-            cash_sweep: CashConfig {
+            cash_sweep: Some(CashConfig {
                 symbol: "CORE".to_string(),
                 minimum: Dollar(100.0),
-            },
+            }),
             targets,
             ignored_holdings: vec![],
             nickname: None,
@@ -322,10 +322,10 @@ mod tests {
         targets.insert("B".to_string(), Percent(50.0));
         let config = AllocationConfig {
             account_id: "123".to_string(),
-            cash_sweep: CashConfig {
+            cash_sweep: Some(CashConfig {
                 symbol: "CORE".to_string(),
                 minimum: Dollar(1000.0),
-            },
+            }),
             targets,
             ignored_holdings: vec![],
             nickname: None,
@@ -396,10 +396,10 @@ mod tests {
         targets.insert("A".to_string(), Percent(100.0));
         let config = AllocationConfig {
             account_id: "123".to_string(),
-            cash_sweep: CashConfig {
+            cash_sweep: Some(CashConfig {
                 symbol: "CORE".to_string(),
                 minimum: Dollar(1000.0),
-            },
+            }),
             targets,
             ignored_holdings: vec!["IGNORED".to_string()],
             nickname: None,

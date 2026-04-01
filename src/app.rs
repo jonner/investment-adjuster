@@ -135,7 +135,13 @@ impl App {
                     "--cash-minimum can only be used with a single account. Try specifying --account."
                 );
             }
-            account_configs[0].cash_sweep.minimum = keep;
+            if let Some(cash_sweep) = account_configs[0].cash_sweep.as_mut() {
+                cash_sweep.minimum = keep;
+            } else {
+                anyhow::bail!(
+                    "--cash-minimum can only be used on accounts with a configured cash sweep"
+                )
+            }
         }
         let mut accounts = self.load_balances()?;
         if accounts.is_empty() {
