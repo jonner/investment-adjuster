@@ -1,7 +1,7 @@
 use std::{
     fmt::Display,
     iter::Sum,
-    ops::{Add, AddAssign, Deref, Div, Mul, Sub},
+    ops::{Add, Div, Mul},
     str::FromStr,
 };
 
@@ -11,36 +11,27 @@ pub mod account;
 pub mod provider;
 
 /// A type that represents dollar values
-#[derive(Debug, Deserialize, Serialize, Default, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(
+    Debug,
+    Deserialize,
+    Serialize,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    PartialOrd,
+    derive_more::Add,
+    derive_more::AddAssign,
+    derive_more::Sub,
+    derive_more::Mul,
+    derive_more::Div,
+    derive_more::Sum,
+)]
 pub struct Dollar(pub f32);
 
 impl Display for Dollar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "${:.2}", self.0)
-    }
-}
-
-impl Deref for Dollar {
-    type Target = f32;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl Sub for Dollar {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self(self.0 - rhs.0)
-    }
-}
-
-impl Add for Dollar {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        Self(self.0 + rhs.0)
     }
 }
 
@@ -59,20 +50,6 @@ impl Add<&Action> for Dollar {
     }
 }
 
-impl AddAssign for Dollar {
-    fn add_assign(&mut self, rhs: Self) {
-        self.0 += rhs.0
-    }
-}
-
-impl Div for Dollar {
-    type Output = f32;
-
-    fn div(self, rhs: Self) -> Self::Output {
-        self.0 / rhs.0
-    }
-}
-
 impl FromStr for Dollar {
     type Err = std::num::ParseFloatError;
 
@@ -81,9 +58,9 @@ impl FromStr for Dollar {
     }
 }
 
-impl Sum for Dollar {
-    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
-        Self(iter.map(|element| element.0).sum())
+impl From<Dollar> for f32 {
+    fn from(val: Dollar) -> Self {
+        val.0
     }
 }
 
@@ -106,22 +83,46 @@ impl Dollar {
 }
 
 /// A type that represents percentage values
-#[derive(Debug, Deserialize, Serialize, Default, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(
+    Debug,
+    Deserialize,
+    Serialize,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    PartialOrd,
+    derive_more::Add,
+    derive_more::Sub,
+    derive_more::Sum,
+)]
 pub struct Percent(pub f32);
 
-impl Deref for Percent {
-    type Target = f32;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl Percent {
+    pub fn new<N, D>(numerator: N, denominator: D) -> Self
+    where
+        N: Into<f32>,
+        D: Into<f32>,
+    {
+        Self(numerator.into() / denominator.into() * 100.0_f32)
     }
 }
 
-impl Sub for Percent {
-    type Output = Self;
+impl From<Percent> for f32 {
+    fn from(val: Percent) -> Self {
+        val.0
+    }
+}
 
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self(self.0 - rhs.0)
+impl Display for Percent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:.1}%", self.0)
+    }
+}
+
+impl<'a> Sum<&'a Percent> for Percent {
+    fn sum<I: Iterator<Item = &'a Percent>>(iter: I) -> Self {
+        Self(iter.map(|element| element.0).sum())
     }
 }
 
@@ -138,18 +139,6 @@ impl Div for Percent {
 
     fn div(self, rhs: Self) -> Self::Output {
         Self(100.0 * (self.0 / 100.0) / (rhs.0 / 100.0))
-    }
-}
-
-impl Display for Percent {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:.1}%", self.0)
-    }
-}
-
-impl<'a> Sum<&'a Percent> for Percent {
-    fn sum<I: Iterator<Item = &'a Percent>>(iter: I) -> Self {
-        Self(iter.map(|element| element.0).sum())
     }
 }
 

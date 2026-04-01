@@ -49,7 +49,7 @@ pub fn format_adjustments(adjustments: Vec<PositionAdjustment>) -> Table {
         .map(|adj| AllocationTableRow {
             symbol: holding_display_name(&adj.holding),
             current_value: adj.holding.current_value,
-            current_percentage: Percent(adj.holding.current_value / total * 100.0),
+            current_percentage: Percent::new(adj.holding.current_value, total),
             target: Some(adj.target),
             buy: match adj.action {
                 Action::Buy(val) => Some(val),
