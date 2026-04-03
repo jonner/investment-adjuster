@@ -120,22 +120,42 @@ impl App {
 
     fn plan_command(&self, args: &PlanArgs) -> anyhow::Result<()> {
         let mut account_configs = self.load_account_configs()?;
-        if let Some(acct) = &args.account {
-            account_configs.retain(|acc| acc.account_id == *acct);
-            if account_configs.is_empty() {
+        let mut filtered_configs = if let Some(arg) = &args.account {
+            let mut found = account_configs
+                .iter_mut()
+                .filter(|config| config.account_id == *arg)
+                .collect::<Vec<_>>();
+            if found.is_empty() {
+                found = account_configs
+                    .iter_mut()
+                    .filter(|config| {
+                        config
+                            .nickname
+                            .as_ref()
+                            .filter(|nickname| {
+                                nickname.to_lowercase().contains(&arg.to_lowercase())
+                            })
+                            .is_some()
+                    })
+                    .collect();
+            }
+            if found.is_empty() {
                 bail!("No allocation targets are configured for that account");
             }
-        }
-        if account_configs.is_empty() {
+            found
+        } else {
+            account_configs.iter_mut().collect()
+        };
+        if filtered_configs.is_empty() {
             bail!("No allocation targets are configured. See help for more information.");
         }
         if let Some(keep) = args.cash_minimum {
-            if account_configs.len() != 1 {
+            if filtered_configs.len() != 1 {
                 anyhow::bail!(
                     "--cash-minimum can only be used with a single account. Try specifying --account."
                 );
             }
-            if let Some(cash_sweep) = account_configs[0].cash_sweep.as_mut() {
+            if let Some(cash_sweep) = filtered_configs[0].cash_sweep.as_mut() {
                 cash_sweep.minimum = keep;
             } else {
                 anyhow::bail!(
@@ -151,11 +171,11 @@ impl App {
         let mut accounts_with_config = Vec::<(account::Balance, account::AllocationConfig)>::new();
         sort_accounts(&mut accounts);
         for account in accounts {
-            if let Some(cfg) = account_configs
+            if let Some(cfg) = filtered_configs
                 .iter()
                 .find(|t| t.account_id == account.account_id)
             {
-                accounts_with_config.push((account, cfg.clone()));
+                accounts_with_config.push((account, (*cfg).clone()));
             }
         }
         if accounts_with_config.is_empty() {

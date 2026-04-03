@@ -53,7 +53,7 @@ pub struct PositionAdjustment {
 }
 
 /// A definition of the desired state of the cash sweep within a given brokerage account
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "PascalCase", deny_unknown_fields)]
 pub struct CashConfig {
     /// The fund that represents the cash sweep (perhaps a money market fund)
@@ -63,7 +63,7 @@ pub struct CashConfig {
 }
 
 /// A definition of the desired allocations for a given brokerage account
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "PascalCase", deny_unknown_fields)]
 pub struct AllocationConfig {
     /// The account that is being configured
